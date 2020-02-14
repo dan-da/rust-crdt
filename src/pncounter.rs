@@ -127,7 +127,7 @@ mod test {
     fn build_op(prims: (u8, u64, bool)) -> Op<u8> {
         let (actor, counter, dir_choice) = prims;
         Op {
-            dot: Dot { actor, counter },
+            dot: Dot::new( actor, counter ),
             dir: if dir_choice { Dir::Pos } else { Dir::Neg },
         }
     }

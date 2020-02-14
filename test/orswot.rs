@@ -18,11 +18,11 @@ fn build_opvec(op_prims: Vec<(u8, HashSet<u8>, u8, u64)>) -> OpVec {
         let op = match choice % 2 {
             0 => Op::Add {
                 members,
-                dot: Dot { actor, counter },
+                dot: Dot::new(actor, counter),
             },
             _ => Op::Rm {
                 members,
-                clock: Dot { actor, counter }.into(),
+                clock: Dot::new( actor, counter ).into(),
             },
         };
         ops.push((actor, op));

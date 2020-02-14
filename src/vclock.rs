@@ -29,18 +29,34 @@ pub trait Actor: Ord + Clone + Hash + Debug {}
 impl<A: Ord + Clone + Hash + Debug> Actor for A {}
 
 /// Dot is a version marker for a single actor
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Dot<A> {
     /// The actor identifier
     pub actor: A,
     /// The current version of this actor
     pub counter: u64,
+    /// optional: Actor's signature of [actor,counter,value]
+    pub sig: Vec<u8>,
 }
 
 impl<A: Actor> Dot<A> {
     /// Build a Dot from an actor and counter
     pub fn new(actor: A, counter: u64) -> Self {
-        Self { actor, counter }
+        let sig = Vec::new();
+        Self {
+            actor,
+            counter,
+            sig,
+        }
+    }
+
+    /// Build a Dot from an actor and counter
+    pub fn new_with_sig(actor: A, counter: u64, sig: Vec<u8>) -> Self {
+        Self {
+            actor,
+            counter,
+            sig,
+        }
     }
 }
 
@@ -56,7 +72,7 @@ impl<A: Actor> Dot<A> {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct VClock<A: Actor> {
     /// dots is the mapping from actors to their associated counters
-    pub dots: BTreeMap<A, u64>,
+    pub dots: BTreeMap<A, Dot<A>>,
 }
 
 impl<A: Actor> Default for VClock<A> {
@@ -69,9 +85,9 @@ impl<A: Actor> PartialOrd for VClock<A> {
     fn partial_cmp(&self, other: &VClock<A>) -> Option<Ordering> {
         if self == other {
             Some(Ordering::Equal)
-        } else if other.dots.iter().all(|(w, c)| self.get(w) >= *c) {
+        } else if other.dots.iter().all(|(w, d)| self.get(w) >= d.counter) {
             Some(Ordering::Greater)
-        } else if self.dots.iter().all(|(w, c)| other.get(w) >= *c) {
+        } else if self.dots.iter().all(|(w, d)| other.get(w) >= d.counter) {
             Some(Ordering::Less)
         } else {
             None
@@ -82,11 +98,11 @@ impl<A: Actor> PartialOrd for VClock<A> {
 impl<A: Actor + Display> Display for VClock<A> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "<")?;
-        for (i, (actor, count)) in self.dots.iter().enumerate() {
+        for (i, (actor, dot)) in self.dots.iter().enumerate() {
             if i > 0 {
                 write!(f, ", ")?;
             }
-            write!(f, "{}:{}", actor, count)?;
+            write!(f, "{}:{}", actor, dot.counter)?;
         }
         write!(f, ">")
     }
@@ -96,7 +112,12 @@ impl<A: Actor> Causal<A> for VClock<A> {
     /// Forget any actors that have smaller counts than the
     /// count in the given vclock
     fn forget(&mut self, other: &Self) {
-        for Dot { actor, counter } in other.iter() {
+        for Dot {
+            actor,
+            counter,
+            sig: _,
+        } in other.iter()
+        {
             if counter >= self.get(&actor) {
                 self.dots.remove(&actor);
             }
@@ -129,8 +150,8 @@ impl<A: Actor> CmRDT for VClock<A> {
 
 impl<A: Actor> CvRDT for VClock<A> {
     fn merge(&mut self, other: Self) {
-        for (actor, counter) in other.dots {
-            self.apply_dot(Dot::new(actor, counter));
+        for (actor, dot) in other.dots {
+            self.apply_dot(Dot::new_with_sig(actor, dot.counter, dot.sig));
         }
     }
 }
@@ -154,7 +175,7 @@ impl<A: Actor> VClock<A> {
     /// Apply a Dot to this vclock.
     fn apply_dot(&mut self, dot: Dot<A>) {
         if self.get(&dot.actor) < dot.counter {
-            self.dots.insert(dot.actor, dot.counter);
+            self.dots.insert(dot.actor.clone(), dot);
         }
     }
 
@@ -185,6 +206,7 @@ impl<A: Actor> VClock<A> {
         Dot {
             actor,
             counter: next,
+            sig: Vec::new(),
         }
     }
 
@@ -205,7 +227,10 @@ impl<A: Actor> VClock<A> {
     /// Return the associated counter for this actor.
     /// All actors not in the vclock have an implied count of 0
     pub fn get(&self, actor: &A) -> u64 {
-        self.dots.get(actor).cloned().unwrap_or(0)
+        match self.dots.get(actor) {
+            Some(d) => d.counter,
+            None => 0,
+        }
     }
 
     /// Returns `true` if this vector clock contains nothing.
@@ -217,10 +242,10 @@ impl<A: Actor> VClock<A> {
     /// for two `VClock` instances.
     pub fn intersection(left: &VClock<A>, right: &Self) -> Self {
         let mut dots = BTreeMap::new();
-        for (left_actor, left_counter) in left.dots.iter() {
+        for (left_actor, left_dot) in left.dots.iter() {
             let right_counter = right.get(left_actor);
-            if right_counter == *left_counter {
-                dots.insert(left_actor.clone(), *left_counter);
+            if right_counter == left_dot.counter {
+                dots.insert(left_actor.clone(), left_dot.clone());
             }
         }
         Self { dots }
@@ -246,13 +271,13 @@ impl<A: Actor> VClock<A> {
     pub fn glb(&mut self, other: &Self) {
         self.dots = mem::replace(&mut self.dots, BTreeMap::new())
             .into_iter()
-            .filter_map(|(actor, count)| {
+            .filter_map(|(actor, dot)| {
                 // Since an actor missing from the dots map has an implied
                 // counter of 0 we can save some memory, and remove the actor.
-                let min_count = cmp::min(count, other.get(&actor));
+                let min_count = cmp::min(dot.counter, other.get(&actor));
                 match min_count {
                     0 => None,
-                    _ => Some((actor, min_count)),
+                    _ => Some((actor, Dot::new_with_sig(dot.actor, min_count, dot.sig))),
                 }
             })
             .collect();
@@ -260,16 +285,17 @@ impl<A: Actor> VClock<A> {
 
     /// Returns an iterator over the dots in this vclock
     pub fn iter(&self) -> impl Iterator<Item = Dot<&A>> {
-        self.dots.iter().map(|(a, c)| Dot {
+        self.dots.iter().map(|(a, d)| Dot {
             actor: a,
-            counter: *c,
+            counter: d.counter,
+            sig: d.sig.clone(),
         })
     }
 }
 
 /// Generated from calls to VClock::into_iter()
 pub struct IntoIter<A: Actor> {
-    btree_iter: btree_map::IntoIter<A, u64>,
+    btree_iter: btree_map::IntoIter<A, Dot<A>>,
 }
 
 impl<A: Actor> std::iter::Iterator for IntoIter<A> {
@@ -278,7 +304,7 @@ impl<A: Actor> std::iter::Iterator for IntoIter<A> {
     fn next(&mut self) -> Option<Dot<A>> {
         self.btree_iter
             .next()
-            .map(|(actor, counter)| Dot::new(actor, counter))
+            .map(|(actor, dot)| Dot::new_with_sig(actor, dot.counter, dot.sig))
     }
 }
 
