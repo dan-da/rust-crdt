@@ -3,6 +3,7 @@ use crdts::Actor;
 use crdts::tree::{Tree, TreeMeta, State, Clock, OpMove, apply_op, do_op, undo_op, redo_op};
 use rand::Rng;
 use std::collections::HashMap;
+use std::env;
 
 
 #[derive(Debug)]
@@ -146,11 +147,8 @@ fn test_concurrent_moves() {
                    OpMove::new(r1.tick(), ids["root"], "c", ids["c"]),
     ];
 
-    // println!("{:#?}", ops);
-  
     r1.apply_ops(&ops);
     r2.apply_ops(&ops);
- //   println!("{:#?}", r1);
 
     println!("Initial tree state on both replicas");
     print_tree(&r1.state.tree, &ids["root"]);
@@ -172,12 +170,11 @@ fn test_concurrent_moves() {
     println!("\nreplica_2 tree after move");
     print_tree(&r2.state.tree, &ids["root"]);
     r2.apply_ops(&repl1_ops);
-    print_tree(&r2.state.tree, &ids["root"]);
 
     // expected result: state is the same on both replicas
     // and final path is /root/c/a because last-writer-wins
     // and replica_2's op has a later timestamp.
-    if (r1.state.is_equal(&r2.state)) {
+    if r1.state.is_equal(&r2.state) {
         println!("\nreplica_1 state matches replica_2 state after each merges other's change.  conflict resolved!");
         print_replica_trees(&r1, &r2, &ids["root"]);
     } else {
@@ -189,26 +186,93 @@ fn test_concurrent_moves() {
         println!("{:#?}", r2.state);
     }
     
-/*    
+    r1.state.check_log_is_descending();
+    r2.state.check_log_is_descending();
+}
+
+fn test_concurrent_moves_cycle() {
+    let mut r1: Replica<&str, u64> = Replica::new(new_id());
+    let mut r2: Replica<&str, u64> = Replica::new(new_id());
+
+    let ids: HashMap<&str, u64> = [
+        ("root", 0), 
+        ("a", new_id()), 
+        ("b", new_id()), 
+        ("c", new_id())]
+    .iter().cloned().collect();
+
+    // Setup initial tree state.
+    let ops = vec![OpMove::new(r1.tick(), 0, "root", ids["root"]),
+                   OpMove::new(r1.tick(), ids["root"], "a", ids["a"]),
+                   OpMove::new(r1.tick(), ids["root"], "b", ids["b"]),
+                   OpMove::new(r1.tick(), ids["a"], "c", ids["c"]),
+    ];
+
+    r1.apply_ops(&ops);
+    r2.apply_ops(&ops);
+
+    println!("Initial tree state on both replicas");
+    print_tree(&r1.state.tree, &ids["root"]);
+
+    // replica_1 moves /root/b to /root/a
+    let repl1_ops = vec![OpMove::new(r1.tick(), ids["a"], "b", ids["b"])];
+
+    // replica_2 "simultaneously" moves /root/a to /root/b
+    let repl2_ops = vec![OpMove::new(r1.tick(), ids["b"], "a", ids["a"])];
+
+    // replica_1 applies his op, then merges op from replica_2
+    r1.apply_ops(&repl1_ops);
+    println!("\nreplica_1 tree after move");
+    print_tree(&r1.state.tree, &ids["root"]);
+    r1.apply_ops(&repl2_ops);
+
+    // replica_2 applies his op, then merges op from replica_1
+    r2.apply_ops(&repl2_ops);
+    println!("\nreplica_2 tree after move");
+    print_tree(&r2.state.tree, &ids["root"]);
+    r2.apply_ops(&repl1_ops);
 
     // expected result: state is the same on both replicas
     // and final path is /root/c/a because last-writer-wins
     // and replica_2's op has a later timestamp.
-    if ($r1->state->is_equal($r2->state)) {
-        echo "\nreplica_1 state matches replica_2 state after each merges other's change.  conflict resolved!\n";
-        print_replica_trees($r1->state, $r2->state);
+    if r1.state.is_equal(&r2.state) {
+        println!("\nreplica_1 state matches replica_2 state after each merges other's change.  conflict resolved!");
+        print_replica_trees(&r1, &r2, &ids["root"]);
     } else {
-        echo "\nwarning: replica_1 state does not match replica_2 state after merge\n";
-        print_replica_trees($r1->state, $r2->state);
-        file_put_contents("/tmp/repl1.json", json_encode($r1, JSON_PRETTY_PRINT));
-        file_put_contents("/tmp/repl2.json", json_encode($r2, JSON_PRETTY_PRINT));
+        println!("\nwarning: replica_1 state does not match replica_2 state after merge");
+        print_replica_trees(&r1, &r2, &ids["root"]);
+        println!("-- replica_1 state --");
+        println!("{:#?}", r1.state);
+        println!("\n-- replica_2 state --");
+        println!("{:#?}", r2.state);
     }
-    $r1->state->check_log_is_descending();
-    return;
-*/    
+    
+    r1.state.check_log_is_descending();
+    r2.state.check_log_is_descending();
+}
+
+
+fn print_help() {
+    let buf = "
+Usage: tree <test>
+
+<test> can be any of:
+  test_concurrent_moves
+  test_concurrent_moves_cycle
+
+";
+    println!("{}", buf);
 }
 
 
 fn main() {
-    test_concurrent_moves();
+    let args: Vec<String> = env::args().collect();
+
+    let test = if args.len() > 1 { &args[1] } else { "" };
+
+    match test {
+        "test_concurrent_moves" => test_concurrent_moves(),
+        "test_concurrent_moves_cycle" => test_concurrent_moves_cycle(),
+        _ => print_help(),
+    }
 }

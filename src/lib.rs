@@ -49,6 +49,9 @@ pub mod ctx;
 /// This module contains a Sequence.
 pub mod lseq;
 
+/// This module contains a Tree.
+pub mod tree;
+
 /// Version Vector with Exceptions
 pub mod vvwe;
 

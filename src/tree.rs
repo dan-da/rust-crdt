@@ -376,23 +376,19 @@ impl<TM: TreeMeta, A: Actor> State<TM, A> {
         self.tree.is_equal(&other.tree)
     }
 
-    /*
+    /// for testing. not part of crdt-tree algo.
+    pub fn check_log_is_descending(&self) {
+        let mut i = 0;
+        while(i < self.log_op_list.len()-1) {
+            let first = &self.log_op_list[i];
+            let second = &self.log_op_list[i+1];
 
-    // for testing. not part of crdt-tree algo.
-    function check_log_is_descending() {
-        $i = 0;
-        for($i = 0; $i < count($this->log_op_list)-1; $i ++) {
-            $first = $this->log_op_list[$i];
-            $second = $this->log_op_list[$i+1];
-
-            if( !$first->timestamp->gt($second->timestamp) ) {
-                throw new Exception("Log not in descending timestamp order!");
+            if !first.timestamp.gt(&second.timestamp) {
+                panic!("Log not in descending timestamp order!");
             }
+            i += 1;
         }
-        return true;
     }
-*/
-
 }
 
 
