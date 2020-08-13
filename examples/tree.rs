@@ -1,10 +1,9 @@
 extern crate crdts;
+
 use crdts::Actor;
-use crdts::tree::{Tree, TreeMeta, State, Clock, OpMove, apply_op, do_op, undo_op, redo_op};
-use rand::Rng;
+use crdts::tree::{Tree, TreeMeta, State, Clock, OpMove, apply_op};
 use std::collections::HashMap;
 use std::env;
-
 
 #[derive(Debug)]
 struct Replica<TM: TreeMeta, A: Actor> {
@@ -105,9 +104,6 @@ fn print_treenode<TM, A>(tree: &Tree<TM, A>, node_id: &A, depth: usize, with_id:
     };
     println!("{:indent$}{}", "", meta, indent=depth*2);
 
-    let ch = tree.children(&node_id);
-    // println!("{:#?}", ch);
-
     for c in tree.children(&node_id) {
         print_treenode(tree, &c, depth+1, with_id);
     }
@@ -174,7 +170,8 @@ fn test_concurrent_moves() {
     // expected result: state is the same on both replicas
     // and final path is /root/c/a because last-writer-wins
     // and replica_2's op has a later timestamp.
-    if r1.state.is_equal(&r2.state) {
+//    if r1.state.is_equal(&r2.state) {
+    if r1.state == r2.state {
         println!("\nreplica_1 state matches replica_2 state after each merges other's change.  conflict resolved!");
         print_replica_trees(&r1, &r2, &ids["root"]);
     } else {
@@ -235,7 +232,7 @@ fn test_concurrent_moves_cycle() {
     // expected result: state is the same on both replicas
     // and final path is /root/c/a because last-writer-wins
     // and replica_2's op has a later timestamp.
-    if r1.state.is_equal(&r2.state) {
+    if r1.state == r2.state {
         println!("\nreplica_1 state matches replica_2 state after each merges other's change.  conflict resolved!");
         print_replica_trees(&r1, &r2, &ids["root"]);
     } else {

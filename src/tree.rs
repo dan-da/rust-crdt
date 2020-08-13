@@ -4,16 +4,16 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::cmp;
 
-//use crate::{Actor, CmRDT, Dot};
-use crate::{Actor, CmRDT};
+//use crate::{Actor, CmRDT};
+use crate::{Actor};
 
 /// treemeta trait
-pub trait TreeMeta: Serialize + Eq + Clone + std::fmt::Debug {}
-impl<TM: Serialize + Eq + Clone + std::fmt::Debug> TreeMeta for TM {}
+pub trait TreeMeta: Serialize + PartialEq + Eq + Clone + std::fmt::Debug {}
+impl<TM: Serialize + PartialEq + Eq + Clone + std::fmt::Debug> TreeMeta for TM {}
 
 
 /// lamport clock + actor
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Clock<A: Actor> {
     actor_id: A,
     counter: u64,
@@ -21,7 +21,7 @@ pub struct Clock<A: Actor> {
 
 
 /// tree node
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TreeNode<TM: TreeMeta, A: Actor> {
     parent_id: A,
     metadata: TM,
@@ -29,7 +29,7 @@ pub struct TreeNode<TM: TreeMeta, A: Actor> {
 }
 
 /// tree
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Tree<TM: TreeMeta, A: Actor> {
     triples: HashMap<A, TreeNode<TM, A>>,   // tree_nodes, indexed by child_id.
     children: HashMap<A, HashMap<A, bool>>,  // parent_id => [child_id => true].  optimization.
@@ -50,7 +50,7 @@ pub struct Tree<TM: TreeMeta, A: Actor> {
 /// they generate new Move t p m c operations for these changes, and
 /// apply these operations using the algorithm described in the rest of
 /// this section.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OpMove<TM: TreeMeta, A:Actor> {
     /// lamport clock + actor
     pub timestamp: Clock<A>,
@@ -71,7 +71,7 @@ pub struct OpMove<TM: TreeMeta, A:Actor> {
 /// previous parent metadata of c: if there exist p' and m'
 /// such that (p', m', c') E tree, then oldp is set to Some(p', m').
 /// The get_parent() function implements this.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LogOpMove<TM: TreeMeta, A:Actor> {
     /// lamport clock + actor
     pub timestamp: Clock<A>,
@@ -86,7 +86,7 @@ pub struct LogOpMove<TM: TreeMeta, A:Actor> {
 }
 
 /// State
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct State<TM: TreeMeta, A:Actor> {
     log_op_list: Vec<LogOpMove<TM, A>>,  // a list of LogMove in descending timestamp order.
     /// tree
@@ -177,11 +177,13 @@ impl<TM: TreeMeta, A: Actor> TreeNode<TM, A> {
         }
     }
 
+/*    
     /// is_equal
     pub fn is_equal(&self, other: &Self) -> bool {
         self.parent_id == other.parent_id &&
         self.metadata == other.metadata
     }
+*/    
 
     /// parent_id
     pub fn parent_id(&self) -> &A {
@@ -213,6 +215,10 @@ impl<TM: TreeMeta, A: Actor> Tree<TM, A> {
         if let Some(t) = result {
             if let Some(map) = self.children.get_mut(&t.parent_id) {
                 map.remove(child_id);
+                // cleanup parent entry if empty.
+                if map.len() == 0 {
+                    self.children.remove(&t.parent_id);
+                }
             }
             self.triples.remove(child_id);
         }
@@ -276,12 +282,14 @@ impl<TM: TreeMeta, A: Actor> Tree<TM, A> {
         }
     }
 
+/*    
     /// is_equal
     fn is_equal(&self, other: &Self) -> bool {
         self.triples.len() == other.triples.len() && 
         self.triples.keys().all(|k| other.triples.contains_key(k)) &&
         self.triples.keys().all(|k| self.triples[k] == other.triples[k])
     }
+*/    
 
 }
 
@@ -370,16 +378,18 @@ impl<TM: TreeMeta, A: Actor> State<TM, A> {
     }
 */
 
+/*
     /// for testing. not part of crdt-tree algo.
     pub fn is_equal(&self, other: &Self) -> bool {
         self.log_op_list == other.log_op_list &&
         self.tree.is_equal(&other.tree)
     }
+*/
 
     /// for testing. not part of crdt-tree algo.
     pub fn check_log_is_descending(&self) {
         let mut i = 0;
-        while(i < self.log_op_list.len()-1) {
+        while i < self.log_op_list.len()-1 {
             let first = &self.log_op_list[i];
             let second = &self.log_op_list[i+1];
 
@@ -523,7 +533,7 @@ pub fn apply_op<TM, A>(op1: OpMove<TM, A>, mut state: State<TM, A>) -> State<TM,
             panic!("applying op with timestamp equal to previous op.  Every op should have a unique timestamp.");
 
             // Or production code could just treat it as a non-op.
-            return state;
+            // return state;
         } else if op1.timestamp.lt(&logop.timestamp) {
             let tree2 = undo_op(logop.clone(), state.tree);
             let undone_state = State::from_existing(ops, tree2);
