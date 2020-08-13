@@ -24,13 +24,10 @@ impl<TM: TreeMeta, A: Actor + std::fmt::Debug> Replica<TM, A> {
         }
     }
 
-    pub fn apply_ops(&mut self, ops: &Vec<OpMove<TM, A>>) {
+    pub fn apply_ops_noref(&mut self, ops: Vec<OpMove<TM, A>>) {
         for op in ops.clone() {
             self.time = self.time.merge(&op.timestamp);
-            self.state = apply_op(op, self.state.clone());
-
-//            println!("{:#?}", self.state);
-
+            apply_op(op, &mut self.state);
 
 /*            
             // store latest timestamp for this actor.
@@ -41,6 +38,11 @@ impl<TM: TreeMeta, A: Actor + std::fmt::Debug> Replica<TM, A> {
             }
 */            
         }
+    }
+
+
+    pub fn apply_ops(&mut self, ops: &Vec<OpMove<TM, A>>) {
+        self.apply_ops_noref(ops.clone())
     }
 
     /*
@@ -82,6 +84,7 @@ impl<TM: TreeMeta, A: Actor + std::fmt::Debug> Replica<TM, A> {
     
 }
 
+// note: in practice a UUID (at least 128 bits should be used)
 fn new_id() -> u64 {
     rand::random::<u64>()
 }

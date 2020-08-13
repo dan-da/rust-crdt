@@ -445,7 +445,7 @@ pub fn is_ancestor<TM, A>(tree: &Tree<TM, A>, child_id: &A, ancestor_id: &A) -> 
 /// Move operation and the current tree and it returns a pair
 /// consisting of a LogMove operation (which will be added to the log) and
 /// an updated tree.
-pub fn do_op<TM, A>(op: OpMove<TM, A>, mut tree: Tree<TM, A>) -> (LogOpMove<TM, A>, Tree<TM, A>)
+pub fn do_op<TM, A>(op: OpMove<TM, A>, tree: &mut Tree<TM, A>) -> LogOpMove<TM, A>
     where A: Actor, TM: TreeMeta {
 
     // When a replica applies a Move op to its tree, it also records
@@ -465,7 +465,7 @@ pub fn do_op<TM, A>(op: OpMove<TM, A>, mut tree: Tree<TM, A>) -> (LogOpMove<TM, 
     if op.child_id == op.parent_id ||
        is_ancestor(&tree, &op.parent_id, &op.child_id) {
 //        echo "tree unchanged!\n";
-        return (log, tree);
+        return log;
     }
 
     // Otherwise, the tree is updated by removing c from
@@ -475,35 +475,31 @@ pub fn do_op<TM, A>(op: OpMove<TM, A>, mut tree: Tree<TM, A>) -> (LogOpMove<TM, 
     let tt = TreeNode::new(op.parent_id, op.metadata);
     tree.add_node(op.child_id, tt);
 //    echo "tree changed!\n";
-    (log, tree)
+    log
 }
 
 /// undo_op
-pub fn undo_op<TM, A>(log: LogOpMove<TM, A>, mut tree: Tree<TM, A>) -> Tree<TM, A>
+pub fn undo_op<TM, A>(log: &LogOpMove<TM, A>, tree: &mut Tree<TM, A>)
     where A: Actor, TM: TreeMeta {
 
     tree.rm_child(&log.child_id);
 
-    if let Some(oldp) = log.oldp {
-        let tn = TreeNode::new(oldp.parent_id, oldp.metadata);
+    if let Some(oldp) = &log.oldp {
+        let tn = TreeNode::new(oldp.parent_id.clone(), oldp.metadata.clone());
         tree.add_node(log.child_id.clone(), tn);
     } 
-
-    tree
 }
 
 
 /// redo_op uses do_op to perform an operation
 /// again and recomputes the LogMove record (which
 /// might have changed due to the effect of the new operation)
-pub fn redo_op<TM, A>(logop: LogOpMove<TM, A>, mut state: State<TM, A>) -> State<TM, A> 
+pub fn redo_op<TM, A>(logop: &LogOpMove<TM, A>, state: &mut State<TM, A>) 
     where A: Actor, TM: TreeMeta {
-    let op = OpMove::from_log_op_move(&logop);
-    let (logop2, tree2) = do_op(op, state.tree);
+    let op = OpMove::from_log_op_move(logop);
+    let logop2 = do_op(op, &mut state.tree);
 
-    state.tree = tree2;
     state.add_log_entry(logop2);
-    state
 }
 
 
@@ -516,15 +512,13 @@ pub fn redo_op<TM, A>(logop: LogOpMove<TM, A>, mut state: State<TM, A>) -> State
 /// indicates that timestamps `t are instance if linorder
 /// type class, and they can therefore be compared with the
 /// < operator during a linear (or total) order.
-pub fn apply_op<TM, A>(op1: OpMove<TM, A>, mut state: State<TM, A>) -> State<TM, A> 
+pub fn apply_op<TM, A>(op1: OpMove<TM, A>, state: &mut State<TM, A>)
     where A: Actor, TM: TreeMeta {
     if state.log_op_list.len() == 0 {
-        let (op2, tree2) = do_op(op1, state.tree);
-        return State::from_existing(vec![op2], tree2);
+        let op2 = do_op(op1, &mut state.tree);
+        state.log_op_list = vec![op2];
     } else {
-        let mut ops = state.log_op_list.clone();  // take from beginning of array
-        let logop = ops.remove(0);  // take from beginning of array
-        if op1.timestamp.eq(&logop.timestamp) {
+        if op1.timestamp.eq(&state.log_op_list[0].timestamp) {
             // This case should never happen in normal operation
             // because it is required that all timestamps are unique.
             // The crdt paper does not even check for this case.
@@ -534,17 +528,14 @@ pub fn apply_op<TM, A>(op1: OpMove<TM, A>, mut state: State<TM, A>) -> State<TM,
 
             // Or production code could just treat it as a non-op.
             // return state;
-        } else if op1.timestamp.lt(&logop.timestamp) {
-            let tree2 = undo_op(logop.clone(), state.tree);
-            let undone_state = State::from_existing(ops, tree2);
-            let applied_state = apply_op(op1, undone_state);
-            let d = redo_op(logop, applied_state);
-            return d;
+        } else if op1.timestamp.lt(&state.log_op_list[0].timestamp) {
+            let logop = state.log_op_list.remove(0);  // take from beginning of array
+            undo_op(&logop, &mut state.tree);
+            apply_op(op1, state);
+            redo_op(&logop, state);
         } else {
-            let (op2, tree2) = do_op(op1, state.tree);
-            state.tree = tree2;
+            let op2 = do_op(op1, &mut state.tree);
             state.add_log_entry(op2);
-            return state;
         }
     }
 }
