@@ -52,6 +52,9 @@ pub mod lseq;
 /// This module contains a Tree.
 pub mod tree;
 
+/// This module contains a TreeState.
+pub mod treestate;
+
 /// Version Vector with Exceptions
 pub mod vvwe;
 

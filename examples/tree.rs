@@ -1,7 +1,8 @@
 extern crate crdts;
 
 use crdts::Actor;
-use crdts::tree::{Tree, TreeMeta, State, Clock, OpMove};
+use crdts::tree::{tree::Tree, treemeta::TreeMeta, clock::Clock, opmove::OpMove};
+use crdts::treestate::State;
 use std::collections::HashMap;
 use std::env;
 use rand::Rng;
@@ -38,8 +39,8 @@ impl<TM: TreeMeta, A: Actor + std::fmt::Debug> Replica<TM, A> {
             let id = op.timestamp.actor_id();
             let result = self.latest_time_by_replica.get(id);
             match result {
-                Some(latest) if !(op.timestamp > *latest) => return,
-                _ => self.latest_time_by_replica.insert(id.clone(), op.timestamp.clone()),
+                Some(latest) if !(op.timestamp > *latest) => {},
+                _ => { self.latest_time_by_replica.insert(id.clone(), op.timestamp.clone()); },
             };
 
             self.state.apply_op(op);
@@ -193,7 +194,7 @@ fn test_concurrent_moves() {
     let repl1_ops = vec![OpMove::new(r1.tick(), ids["b"], "a", ids["a"])];
 
     // replica_2 "simultaneously" moves /root/a to /root/c
-    let repl2_ops = vec![OpMove::new(r1.tick(), ids["c"], "a", ids["a"])];
+    let repl2_ops = vec![OpMove::new(r2.tick(), ids["c"], "a", ids["a"])];
 
     // replica_1 applies his op, then merges op from replica_2
     r1.apply_ops(&repl1_ops);
@@ -255,7 +256,7 @@ fn test_concurrent_moves_cycle() {
     let repl1_ops = vec![OpMove::new(r1.tick(), ids["a"], "b", ids["b"])];
 
     // replica_2 "simultaneously" moves /root/a to /root/b
-    let repl2_ops = vec![OpMove::new(r1.tick(), ids["b"], "a", ids["a"])];
+    let repl2_ops = vec![OpMove::new(r2.tick(), ids["b"], "a", ids["a"])];
 
     // replica_1 applies his op, then merges op from replica_2
     r1.apply_ops(&repl1_ops);
