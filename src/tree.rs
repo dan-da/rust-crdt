@@ -4,8 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::cmp::{Ordering, Ord, PartialOrd, PartialEq, Eq};
 
-//use crate::{Actor, CmRDT};
-use crate::{Actor};
+use crate::{Actor, CmRDT};
 
 /// treemeta trait
 pub trait TreeMeta: Serialize + PartialEq + Eq + Clone + std::fmt::Debug {}
@@ -576,35 +575,11 @@ impl<TM: TreeMeta, A: Actor> State<TM, A> {
     }
 }
 
-
-
-
-
-
-
-/*
-impl<T: Clone, A: Actor> LSeq<T, A> {
-    /// Create an empty LSEQ
-    pub fn new(id: A) -> Self {
-    }
-}
-*/
-
-/*
-impl<T: Clone, A: Actor> CmRDT for LSeq<T, A> {
-    type Op = Op<T, A>;
-    /// Apply an operation to an LSeq instance.
-    ///
-    /// If the operation is an insert and the identifier is **already** present in the LSEQ instance
-    /// the result is a no-op
-    ///
-    /// If the operation is a delete and the identifier is **not** present in the LSEQ instance the
-    /// result is a no-op
+impl<TM: TreeMeta, A: Actor> CmRDT for State<TM, A> {
+    type Op = OpMove<TM, A>;
+    
+    /// Apply an operation to a State instance.
     fn apply(&mut self, op: Self::Op) {
-        match op {
-            Op::Insert { id, dot, val } => self.insert(id, dot, val),
-            Op::Delete { id, .. } => self.delete(id),
-        }
+        self.apply_op(op);
     }
 }
-*/
