@@ -14,6 +14,7 @@ struct Replica<TM: TreeMeta, A: Actor> {
     time:  Clock<A>,       // must implement clock_interface
 
     latest_time_by_replica: HashMap<A, Clock<A>>,
+    track_causally_stable_threshold: bool,
 }
 
 impl<TM: TreeMeta, A: Actor + std::fmt::Debug> Replica<TM, A> {
@@ -23,8 +24,13 @@ impl<TM: TreeMeta, A: Actor + std::fmt::Debug> Replica<TM, A> {
             id: id.clone(),
             state: State::new(),
             time: Clock::<A>::new(id, None),
-            latest_time_by_replica: HashMap::<A, Clock<A>>::new()
+            latest_time_by_replica: HashMap::<A, Clock<A>>::new(),
+            track_causally_stable_threshold: false,
         }
+    }
+
+    pub fn track_causally_stable_threshold(&mut self, flag: bool) {
+        self.track_causally_stable_threshold = flag;
     }
 
     pub fn id(&self) -> &A {
@@ -36,20 +42,19 @@ impl<TM: TreeMeta, A: Actor + std::fmt::Debug> Replica<TM, A> {
             self.time = self.time.merge(&op.timestamp);
 
             // store latest timestamp for this actor.
-            let id = op.timestamp.actor_id();
-            let result = self.latest_time_by_replica.get(id);
-            match result {
-                Some(latest) if !(op.timestamp > *latest) => {},
-                _ => { self.latest_time_by_replica.insert(id.clone(), op.timestamp.clone()); },
-            };
+            // This is only needed for calculation of
+            // causally_stable_threshold.  If that is not
+            // required, it needn't execute.
+            if self.track_causally_stable_threshold  {
+                let id = op.timestamp.actor_id();
+                let result = self.latest_time_by_replica.get(id);
+                match result {
+                    Some(latest) if !(op.timestamp > *latest) => {},
+                    _ => { self.latest_time_by_replica.insert(id.clone(), op.timestamp.clone()); },
+                };
+            }
 
             self.state.apply_op(op);
-
-/*            
-            if(!$latest || $op->timestamp->gt($latest)) {
-                $this->latest_time_by_replica[$id] = $op->timestamp;
-            }
-*/            
         }
     }
 
@@ -327,7 +332,8 @@ fn test_truncate_log() {
 
     // start some replicas.
     for _i in 0..num_replicas {
-        let r: Replica<&str, u64> = Replica::new(new_id());
+        let mut r: Replica<&str, u64> = Replica::new(new_id());
+        r.track_causally_stable_threshold(true);  // needed for truncation
         replicas.push(r);
     }
 
@@ -370,7 +376,6 @@ fn test_truncate_log() {
             }
         );
     }
-
 
     println!("-- Stats -- ");
     println!("\n{:#?}", stats);
