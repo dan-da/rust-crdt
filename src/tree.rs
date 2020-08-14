@@ -148,25 +148,6 @@ impl<A: Actor> Ord for Clock<A> {
     }
 }
 
-/*
-    /// returns true if this la_time is greater than other la_time.
-    pub fn gt(&self, other: &Self) -> bool{
-        self.compare(other) == 1
-    }
-
-    /// lt
-    pub fn lt(&self, other: &Self) -> bool {
-        self.compare(other) == -1
-    }
-
-    /// eq
-    pub fn eq(&self, other: &Self) -> bool {
-        self.compare(other) == 0
-    }
-}
-*/    
-
-
 impl<A: Actor> PartialOrd for Clock<A> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
@@ -194,14 +175,6 @@ impl<TM: TreeMeta, A: Actor> TreeNode<TM, A> {
             metadata,
         }
     }
-
-/*    
-    /// is_equal
-    pub fn is_equal(&self, other: &Self) -> bool {
-        self.parent_id == other.parent_id &&
-        self.metadata == other.metadata
-    }
-*/    
 
     /// parent_id
     pub fn parent_id(&self) -> &A {
@@ -339,17 +312,6 @@ impl<TM: TreeMeta, A: Actor> Tree<TM, A> {
         }
         false
     }
-
-
-/*    
-    /// is_equal
-    fn is_equal(&self, other: &Self) -> bool {
-        self.triples.len() == other.triples.len() && 
-        self.triples.keys().all(|k| other.triples.contains_key(k)) &&
-        self.triples.keys().all(|k| self.triples[k] == other.triples[k])
-    }
-*/    
-
 }
 
 impl<TM: TreeMeta, A: Actor> OpMove<TM, A> {
@@ -387,14 +349,6 @@ impl<TM: TreeMeta, A: Actor> LogOpMove<TM, A> {
         }
     }
 }
-
-
-/*
-pub struct State<TM: TreeMeta, A:Actor> {
-    log_op_list: Vec<LogOpMove<TM, A>>,  // a list of LogMove in descending timestamp order.
-    tree: Tree<TM, A>,
-}
-*/
 
 impl<TM: TreeMeta, A: Actor> State<TM, A> {
 
@@ -456,14 +410,6 @@ impl<TM: TreeMeta, A: Actor> State<TM, A> {
 
         last_idx + 1 < len
     }
-
-/*
-    /// for testing. not part of crdt-tree algo.
-    pub fn is_equal(&self, other: &Self) -> bool {
-        self.log_op_list == other.log_op_list &&
-        self.tree.is_equal(&other.tree)
-    }
-*/
 
     /// for testing. not part of crdt-tree algo.
     pub fn check_log_is_descending(&self) {
@@ -577,7 +523,7 @@ impl<TM: TreeMeta, A: Actor> State<TM, A> {
 
 impl<TM: TreeMeta, A: Actor> CmRDT for State<TM, A> {
     type Op = OpMove<TM, A>;
-    
+
     /// Apply an operation to a State instance.
     fn apply(&mut self, op: Self::Op) {
         self.apply_op(op);
