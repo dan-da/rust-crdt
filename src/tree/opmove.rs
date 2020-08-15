@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::{PartialEq, Eq};
 
 use crate::{Actor};
-use crate::tree::{treemeta::TreeMeta, logopmove::LogOpMove, clock::Clock};
+use super::{TreeMeta, LogOpMove, Clock};
 
 
 /// At time $timestamp, $child_id is moved to be a child of $parent_id.

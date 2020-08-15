@@ -1,8 +1,7 @@
 extern crate crdts;
 
 use crdts::Actor;
-use crdts::tree::{tree::Tree, treemeta::TreeMeta, clock::Clock, opmove::OpMove};
-use crdts::treestate::State;
+use crdts::tree::{Tree, State, TreeMeta, Clock, OpMove};
 use std::collections::HashMap;
 use std::env;
 use rand::Rng;

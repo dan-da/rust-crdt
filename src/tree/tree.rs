@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::cmp::{PartialEq, Eq};
 
 use crate::{Actor};
-use crate::tree::{treemeta::TreeMeta, treenode::TreeNode};
+use super::{TreeMeta, TreeNode};
 
 /// tree
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

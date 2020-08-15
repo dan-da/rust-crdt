@@ -2,8 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::{PartialEq, Eq};
 
 use crate::Actor;
-use crate::tree::{treemeta::TreeMeta, treenode::TreeNode, opmove::OpMove, clock::Clock};
-
+use super::{TreeMeta, TreeNode, OpMove, Clock};
 
 /// When a replica applies a Move operation to its tree it
 /// also records a corresponding LogMove operation in its log.

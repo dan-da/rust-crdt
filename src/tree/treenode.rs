@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::{PartialEq, Eq};
 
 use crate::Actor;
-use crate::tree::{treemeta::TreeMeta};
+use super::TreeMeta;
 
 /// tree node
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -12,6 +12,9 @@
 /// This module contains a Tree.
 pub mod tree;
 
+/// This module contains State.
+pub mod state;
+
 /// This module contains a Clock.
 pub mod clock;
 
@@ -26,3 +29,13 @@ pub mod treemeta;
 
 /// This module contains TreeNode.
 pub mod treenode;
+
+pub use self::{
+    tree::Tree,
+    state::State,
+    clock::Clock,
+    opmove::OpMove,
+    logopmove::LogOpMove,
+    treemeta::TreeMeta,
+    treenode::TreeNode,
+};
