@@ -37,6 +37,11 @@ impl<TM: TreeMeta, A: Actor> State<TM, A> {
         &self.tree
     }
 
+    /// mutable tree reference
+    pub fn tree_mut(&mut self) -> &mut Tree<TM, A> {
+        &mut self.tree
+    }
+
     /// log
     pub fn log(&self) -> &Vec<LogOpMove<TM, A>> {
         &self.log_op_list

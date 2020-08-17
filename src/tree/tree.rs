@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::cmp::{PartialEq, Eq};
 
-use crate::{Actor};
+use crate::Actor;
 use super::{TreeMeta, TreeNode};
 
 /// tree
@@ -13,8 +13,6 @@ pub struct Tree<TM: TreeMeta, A: Actor> {
 }
 
 impl<TM: TreeMeta, A: Actor> Tree<TM, A> {
-    // triples: HashMap<A, TreeNode<T, A>>,   // tree_nodes, indexed by child_id.
-    // children: HashMap<A, HashMap<A, bool>>,  // parent_id => [child_id => true].  optimization.
 
     /// new 
     pub fn new() -> Self {
@@ -64,25 +62,19 @@ impl<TM: TreeMeta, A: Actor> Tree<TM, A> {
     }
 
     /// returns matching node, or None.
-    pub fn find_mut(&mut self, child_id: &A) -> Option<&mut TreeNode<TM,A>> {
-        self.triples.get_mut(child_id)
-    }
-
-    /// returns matching node, or None.
     pub fn find(&self, child_id: &A) -> Option<&TreeNode<TM,A>> {
         self.triples.get(child_id)
     }
-
 
     /// returns children (IDs) of a given parent node.
     /// useful for walking tree.
     /// not used by crdt algo.
     pub fn children(&self, parent_id: &A) -> Vec<A> {
         if let Some(list) = self.children.get(parent_id) {
-            let l: Vec<A> = list.keys().cloned().collect();
-            return l;
+            list.keys().cloned().collect()
+        } else {
+            Vec::<A>::default()
         }
-        Vec::<A>::default()
     }
 
     /// walks tree and calls callback fn for each node.

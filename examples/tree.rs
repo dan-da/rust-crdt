@@ -65,20 +65,24 @@ impl<TM: TreeMeta, A: Actor + std::fmt::Debug> Replica<TM, A> {
         self.state.tree()
     }
 
+    pub fn tree_mut(&mut self) -> &mut Tree<TM, A> {
+        self.state.tree_mut()
+    }
+
     pub fn apply_ops(&mut self, ops: &Vec<OpMove<TM, A>>) {
         self.apply_ops_noref(ops.clone())
     }
 
-    /*
+/*    
     // applies ops from a log.  useful for log replay.
-    function apply_log_ops(array $log_ops) {
-        $ops = [];
-        foreach($log_ops as $log_op) {
-            $ops[] = op_move::from_log_op_move($log_op);
+    fn apply_log_ops(&mut self, log_ops: &Vec<LogOpMove<TM, A>>) {
+        let mut ops: Vec::<OpMove<TM, A>> = Vec::new();
+        for log_op in log_ops {
+            ops.push(OpMove::from_log_op_move(log_op));
         }
-        $this->apply_ops($ops);
+        self.apply_ops(&ops);
     }
-*/    
+*/
 
     pub fn causally_stable_threshold(&self) -> Option<&Clock<A>> {
         // The minimum of latest timestamp from each replica
@@ -381,6 +385,81 @@ fn test_truncate_log() {
 }
 
 
+fn test_move_to_trash() {
+
+    let mut r1: Replica<&str, u64> = Replica::new(new_id());
+    let mut r2: Replica<&str, u64> = Replica::new(new_id());
+
+    r1.track_causally_stable_threshold(true);
+    r2.track_causally_stable_threshold(true);
+
+    let ids: HashMap<&str, u64> = [
+        ("forest", new_id()),
+        ("trash", new_id()), 
+        ("root", new_id()), 
+        ("home", new_id()), 
+        ("bob", new_id()),
+        ("project", new_id()),
+    ].iter().cloned().collect();
+
+    // Generate initial tree state.
+    //
+    // - forest
+    //   - trash
+    //   - root
+    //     - home
+    //       - bob
+    //         - project
+    let mut ops = vec![OpMove::new(r1.tick(), ids["forest"], "root", ids["root"]),
+                       OpMove::new(r1.tick(), ids["forest"], "trash", ids["trash"]),
+                       OpMove::new(r1.tick(), ids["root"], "home", ids["home"]),
+                       OpMove::new(r1.tick(), ids["home"], "bob", ids["bob"]),
+                       OpMove::new(r1.tick(), ids["bob"], "project", ids["project"]),
+    ];
+
+    // add some nodes under project
+    mktree_ops(&mut ops, &mut r1, ids["project"], 2, 3);
+    r1.apply_ops(&ops);
+    r2.apply_ops(&ops);
+
+    println!("Initial tree");
+    print_tree(r1.tree(), &ids["forest"]);
+
+    // move project to trash
+    let ops = vec![OpMove::new(r1.tick(), ids["trash"], "project", ids["project"]),];
+    r1.apply_ops(&ops);
+    r2.apply_ops(&ops);
+
+    println!("\nAfter project moved to trash (deleted) on both replicas");
+    print_tree(r1.tree(), &ids["forest"]);
+ 
+    // Initially, trashed nodes must be retained because a concurrent move
+    // operation may move them back out of the trash.
+    //
+    // Once the operation that moved a node to the trash is causally
+    // stable, we know that no future operations will refer to this node,
+    // and so the trashed node and its descendants can be discarded.
+    //
+    // note:  change r1.tick() to r2.tick() for any of the above operations to 
+    //        make the causally stable threshold less than the trash operation
+    //        timestamp, which will cause this test to fail, ie hit the
+    //        "trash should not be emptied" condition.    
+    let result = r2.causally_stable_threshold();
+    match result {
+        Some(cst) if cst < &ops[0].timestamp => {
+            println!("\ncausally stable threshold:\n{:#?}\n\ntrash operation:\n{:#?}", cst, ops[0].timestamp);
+            panic!("!error: causally stable threshold is less than trash operation timestamp");
+        } 
+        None => panic!("!error: causally stable threshold not found"),
+        _ => {}
+    }
+
+    // empty trash
+    r1.tree_mut().rm_subtree(&ids["trash"], false);
+    println!("\nDelete op is now causally stable, so we can empty trash:");
+    print_tree(r1.tree(), &ids["forest"]);
+}
+
 fn print_help() {
     let buf = "
 Usage: tree <test>
@@ -390,6 +469,7 @@ Usage: tree <test>
   test_concurrent_moves_cycle
   test_truncate_log
   test_walk_deep_tree
+  test_move_to_trash
 
 ";
     println!("{}", buf);
@@ -406,6 +486,8 @@ fn main() {
         "test_concurrent_moves_cycle" => test_concurrent_moves_cycle(),
         "test_truncate_log" => test_truncate_log(),
         "test_walk_deep_tree" => test_walk_deep_tree(),
+        "test_move_to_trash" => test_move_to_trash(),
+        
         _ => print_help(),
     }
 }
