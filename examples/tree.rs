@@ -137,7 +137,7 @@ fn new_id() -> u64 {
 
 // print a treenode, recursively
 fn print_treenode<TM, A>(tree: &Tree<TM, A>, node_id: &A, depth: usize, with_id: bool) 
-    where A: Actor + std::fmt::Debug, TM: TreeMeta {
+    where A: Actor + std::fmt::Debug, TM: TreeMeta + std::fmt::Debug {
 
     let result = tree.find(&node_id);
     let meta = match result {
@@ -160,12 +160,12 @@ fn print_treenode<TM, A>(tree: &Tree<TM, A>, node_id: &A, depth: usize, with_id:
 
 // print a tree.
 fn print_tree<TM, A>(tree: &Tree<TM, A>, root: &A)
-    where A: Actor + std::fmt::Debug, TM: TreeMeta {
+    where A: Actor + std::fmt::Debug, TM: TreeMeta + std::fmt::Debug {
     print_treenode(tree, root, 0, false);
 }
 
 fn print_replica_trees<TM, A>(repl1: &Replica<TM, A>, repl2: &Replica<TM, A>, root: &A)
-    where A: Actor + std::fmt::Debug, TM: TreeMeta {
+    where A: Actor + std::fmt::Debug, TM: TreeMeta + std::fmt::Debug {
     println!("\n--replica_1 --");
     print_tree(repl1.tree(), root);
     println!("\n--replica_2 --");

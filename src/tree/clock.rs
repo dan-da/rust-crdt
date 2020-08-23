@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::cmp::{Ordering, Ord, PartialOrd, PartialEq, Eq};
+use crate::quickcheck::{Arbitrary, Gen};
 
 use crate::Actor;
 
@@ -79,3 +80,59 @@ impl<A: Actor> PartialEq for Clock<A> {
 }
 
 impl<A: Actor> Eq for Clock<A> {}
+
+impl<A: Actor + Arbitrary> Arbitrary for Clock<A> {
+
+    fn arbitrary<G: Gen>(g: &mut G) -> Self {
+        Self {
+            actor_id: A::arbitrary(g),
+            counter: u64::arbitrary(g),
+        }
+    }    
+
+    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+        let mut shrunk_clocks = Vec::new();
+        if self.counter > 0 {
+            shrunk_clocks.push(Self::new(self.actor_id.clone(), Some(self.counter - 1)));
+        }
+        Box::new(shrunk_clocks.into_iter())
+    }
+}
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use quickcheck::quickcheck;
+
+    quickcheck! {
+        fn inc_increments_only_the_counter(clock: Clock<u8>) -> bool {
+            clock.inc() == Clock::new(clock.actor_id, Some(clock.counter + 1))
+        }
+
+        fn test_total_order(a: Clock<u8>, b: Clock<u8>) -> bool {
+            let cmp_ab = a.cmp(&b);
+            let cmp_ba = b.cmp(&a);
+
+            match (cmp_ab, cmp_ba) {
+                (Ordering::Less, Ordering::Greater) => a.counter < b.counter || a.counter == b.counter && a.actor_id < b.actor_id,
+                (Ordering::Greater, Ordering::Less) => a.counter > b.counter || a.counter == b.counter && a.actor_id > b.actor_id,
+                (Ordering::Equal, Ordering::Equal) => a.actor_id == b.actor_id && a.counter == b.counter,
+                _ => false,
+            }
+        }
+
+        fn test_partial_order(a: Clock<u8>, b: Clock<u8>) -> bool {
+            let cmp_ab = a.partial_cmp(&b);
+            let cmp_ba = b.partial_cmp(&a);
+
+            match (cmp_ab, cmp_ba) {
+                (None, None) => a.actor_id != b.actor_id,
+                (Some(Ordering::Less), Some(Ordering::Greater)) => a.counter < b.counter || a.counter == b.counter && a.actor_id < b.actor_id,
+                (Some(Ordering::Greater), Some(Ordering::Less)) => a.counter > b.counter || a.counter == b.counter && a.actor_id > b.actor_id,
+                (Some(Ordering::Equal), Some(Ordering::Equal)) => a.actor_id == b.actor_id && a.counter == b.counter,
+                _ => false
+            }
+        }
+    }
+}

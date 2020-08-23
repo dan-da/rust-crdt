@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::cmp::{PartialEq, Eq};
 
-use crate::{Actor};
+use crate::Actor;
 use super::{TreeMeta, LogOpMove, Clock};
-
+use crate::quickcheck::{Arbitrary, Gen};
 
 /// At time $timestamp, $child_id is moved to be a child of $parent_id.
 /// Old location doesn't matter.
@@ -54,3 +54,17 @@ impl<TM: TreeMeta, A: Actor> OpMove<TM, A> {
         }
     }
 }
+
+
+impl<A: Actor + Arbitrary, TM: TreeMeta + Arbitrary> Arbitrary for OpMove<TM, A> {
+
+    fn arbitrary<G: Gen>(g: &mut G) -> Self {
+        Self::new(Clock::arbitrary(g),
+                  A::arbitrary(g),
+                  TM::arbitrary(g),
+                  A::arbitrary(g)
+        )
+    }
+
+}
+
