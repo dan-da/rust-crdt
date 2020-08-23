@@ -4,28 +4,28 @@ use serde::{Deserialize, Serialize};
 use std::cmp::{PartialEq, Eq};
 
 use crate::{Actor, CmRDT};
-use super::{TreeMeta, TreeNode, OpMove, LogOpMove, Tree, Clock};
+use super::{TreeId, TreeMeta, TreeNode, OpMove, LogOpMove, Tree, Clock};
 
 /// State
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct State<TM: TreeMeta, A:Actor> {
-    log_op_list: Vec<LogOpMove<TM, A>>,  // a list of LogMove in descending timestamp order.
+pub struct State<ID: TreeId, TM: TreeMeta, A:Actor> {
+    log_op_list: Vec<LogOpMove<ID, TM, A>>,  // a list of LogMove in descending timestamp order.
     /// tree
-    tree: Tree<TM, A>,
+    tree: Tree<ID, TM>,
 }
 
-impl<TM: TreeMeta, A: Actor> State<TM, A> {
+impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
 
     /// new
     pub fn new() -> Self {
         Self {
-            log_op_list: Vec::<LogOpMove<TM, A>>::default(),
-            tree: Tree::<TM, A>::new(),
+            log_op_list: Vec::<LogOpMove<ID, TM, A>>::default(),
+            tree: Tree::<ID, TM>::new(),
         }
     }
 
     /// from_existing
-    pub fn from_existing(log_op_list: Vec<LogOpMove<TM, A>>, tree: Tree<TM, A>) -> Self {
+    pub fn from_existing(log_op_list: Vec<LogOpMove<ID, TM, A>>, tree: Tree<ID, TM>) -> Self {
         Self {
             log_op_list,
             tree,
@@ -33,22 +33,22 @@ impl<TM: TreeMeta, A: Actor> State<TM, A> {
     }
 
     /// tree
-    pub fn tree(&self) -> &Tree<TM, A> {
+    pub fn tree(&self) -> &Tree<ID, TM> {
         &self.tree
     }
 
     /// mutable tree reference
-    pub fn tree_mut(&mut self) -> &mut Tree<TM, A> {
+    pub fn tree_mut(&mut self) -> &mut Tree<ID, TM> {
         &mut self.tree
     }
 
     /// log
-    pub fn log(&self) -> &Vec<LogOpMove<TM, A>> {
+    pub fn log(&self) -> &Vec<LogOpMove<ID, TM, A>> {
         &self.log_op_list
     }
 
     /// add_log_entry
-    pub fn add_log_entry(&mut self, entry: LogOpMove<TM, A>) {
+    pub fn add_log_entry(&mut self, entry: LogOpMove<ID, TM, A>) {
         // add at beginning of array
         self.log_op_list.insert(0, entry);
     }
@@ -101,7 +101,7 @@ impl<TM: TreeMeta, A: Actor> State<TM, A> {
     /// Move operation and the current tree and it returns a pair
     /// consisting of a LogMove operation (which will be added to the log) and
     /// an updated tree.
-    pub fn do_op(&mut self, op: OpMove<TM, A>) -> LogOpMove<TM, A> {
+    pub fn do_op(&mut self, op: OpMove<ID, TM, A>) -> LogOpMove<ID, TM, A> {
 
         // When a replica applies a Move op to its tree, it also records
         // a corresponding LogMove op in its log.  The t, p, m, and c
@@ -132,7 +132,7 @@ impl<TM: TreeMeta, A: Actor> State<TM, A> {
     }
 
     /// undo_op
-    pub fn undo_op(&mut self, log: &LogOpMove<TM, A>) {
+    pub fn undo_op(&mut self, log: &LogOpMove<ID, TM, A>) {
         self.tree.rm_child(&log.child_id);
 
         if let Some(oldp) = &log.oldp {
@@ -144,7 +144,7 @@ impl<TM: TreeMeta, A: Actor> State<TM, A> {
     /// redo_op uses do_op to perform an operation
     /// again and recomputes the LogMove record (which
     /// might have changed due to the effect of the new operation)
-    pub fn redo_op(&mut self, logop: &LogOpMove<TM, A>) {
+    pub fn redo_op(&mut self, logop: &LogOpMove<ID, TM, A>) {
         let op = OpMove::from_log_op_move(logop);
         let logop2 = self.do_op(op);
 
@@ -160,7 +160,7 @@ impl<TM: TreeMeta, A: Actor> State<TM, A> {
     /// indicates that timestamps `t are instance if linorder
     /// type class, and they can therefore be compared with the
     /// < operator during a linear (or total) order.
-    pub fn apply_op(&mut self, op1: OpMove<TM, A>) {
+    pub fn apply_op(&mut self, op1: OpMove<ID, TM, A>) {
         if self.log_op_list.len() == 0 {
             let op2 = self.do_op(op1);
             self.log_op_list = vec![op2];
@@ -189,21 +189,21 @@ impl<TM: TreeMeta, A: Actor> State<TM, A> {
     }
 
     /// todo
-    pub fn apply_ops_into(&mut self, ops: Vec<OpMove<TM, A>>) {
+    pub fn apply_ops_into(&mut self, ops: Vec<OpMove<ID, TM, A>>) {
         for op in ops {
             self.apply_op(op);
         }
     }    
 
     /// todo
-    pub fn apply_ops(&mut self, ops: &Vec<OpMove<TM, A>>) {
+    pub fn apply_ops(&mut self, ops: &Vec<OpMove<ID, TM, A>>) {
         self.apply_ops_into(ops.clone())
     }
 
 }
 
-impl<TM: TreeMeta, A: Actor> CmRDT for State<TM, A> {
-    type Op = OpMove<TM, A>;
+impl<ID: TreeId, TM: TreeMeta, A: Actor> CmRDT for State<ID, TM, A> {
+    type Op = OpMove<ID, TM, A>;
 
     /// Apply an operation to a State instance.
     fn apply(&mut self, op: Self::Op) {

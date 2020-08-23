@@ -24,6 +24,9 @@ pub mod opmove;
 /// This module contains LogOpMove.
 pub mod logopmove;
 
+/// This module contains TreeId.
+pub mod treeid;
+
 /// This module contains TreeMeta.
 pub mod treemeta;
 
@@ -36,6 +39,7 @@ pub use self::{
     clock::Clock,
     opmove::OpMove,
     logopmove::LogOpMove,
+    treeid::TreeId,
     treemeta::TreeMeta,
     treenode::TreeNode,
 };

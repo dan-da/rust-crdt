@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::{PartialEq, Eq};
 
 use crate::Actor;
-use super::{TreeMeta, TreeNode, OpMove, Clock};
+use super::{TreeId, TreeMeta, TreeNode, OpMove, Clock};
 
 /// When a replica applies a Move operation to its tree it
 /// also records a corresponding LogMove operation in its log.
@@ -14,22 +14,22 @@ use super::{TreeMeta, TreeNode, OpMove, Clock};
 /// such that (p', m', c') E tree, then oldp is set to Some(p', m').
 /// The get_parent() function implements this.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct LogOpMove<TM: TreeMeta, A:Actor> {
+pub struct LogOpMove<ID: TreeId, TM: TreeMeta, A:Actor> {
     /// lamport clock + actor
     pub timestamp: Clock<A>,
     /// parent identifier
-    pub parent_id: A,
+    pub parent_id: ID,
     /// metadata
     pub metadata: TM,
     /// child identifier
-    pub child_id: A,
+    pub child_id: ID,
     /// previous TreeNode, or None
-    pub oldp: Option<TreeNode<TM, A>>,
+    pub oldp: Option<TreeNode<ID, TM>>,
 }
 
-impl<TM: TreeMeta, A: Actor> LogOpMove<TM, A> {
+impl<ID: TreeId, TM: TreeMeta, A: Actor> LogOpMove<ID, TM, A> {
     /// new
-    pub fn new(op: &OpMove<TM, A>, oldp: Option<TreeNode<TM, A>>) -> LogOpMove<TM, A> {
+    pub fn new(op: &OpMove<ID, TM, A>, oldp: Option<TreeNode<ID, TM>>) -> LogOpMove<ID, TM, A> {
         LogOpMove {
             timestamp: op.timestamp.clone(),
             parent_id: op.parent_id.clone(),

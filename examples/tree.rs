@@ -1,22 +1,22 @@
 extern crate crdts;
 
 use crdts::Actor;
-use crdts::tree::{Tree, State, TreeMeta, Clock, OpMove};
+use crdts::tree::{Tree, State, TreeId, TreeMeta, Clock, OpMove};
 use std::collections::HashMap;
 use std::env;
 use rand::Rng;
 
 #[derive(Debug)]
-struct Replica<TM: TreeMeta, A: Actor> {
-    id: A,                // globally unique id.
-    state: State<TM, A>,  // state
-    time:  Clock<A>,       // must implement clock_interface
+struct Replica<ID: TreeId, TM: TreeMeta, A: Actor> {
+    id: A,                    // globally unique id.
+    state: State<ID, TM, A>,  // state
+    time:  Clock<A>,          // must implement clock_interface
 
     latest_time_by_replica: HashMap<A, Clock<A>>,
     track_causally_stable_threshold: bool,
 }
 
-impl<TM: TreeMeta, A: Actor + std::fmt::Debug> Replica<TM, A> {
+impl<ID: TreeId, TM: TreeMeta, A: Actor + std::fmt::Debug> Replica<ID, TM, A> {
 
     pub fn new(id: A) -> Self {
         Self {
@@ -36,7 +36,7 @@ impl<TM: TreeMeta, A: Actor + std::fmt::Debug> Replica<TM, A> {
         &self.id
     }
 
-    pub fn apply_ops_noref(&mut self, ops: Vec<OpMove<TM, A>>) {
+    pub fn apply_ops_noref(&mut self, ops: Vec<OpMove<ID, TM, A>>) {
         for op in ops.clone() {
             self.time = self.time.merge(&op.timestamp);
 
@@ -57,19 +57,19 @@ impl<TM: TreeMeta, A: Actor + std::fmt::Debug> Replica<TM, A> {
         }
     }
 
-    pub fn state(&self) -> &State<TM, A> {
+    pub fn state(&self) -> &State<ID, TM, A> {
         &self.state
     }
 
-    pub fn tree(&self) -> &Tree<TM, A> {
+    pub fn tree(&self) -> &Tree<ID, TM> {
         self.state.tree()
     }
 
-    pub fn tree_mut(&mut self) -> &mut Tree<TM, A> {
+    pub fn tree_mut(&mut self) -> &mut Tree<ID, TM> {
         self.state.tree_mut()
     }
 
-    pub fn apply_ops(&mut self, ops: &Vec<OpMove<TM, A>>) {
+    pub fn apply_ops(&mut self, ops: &Vec<OpMove<ID, TM, A>>) {
         self.apply_ops_noref(ops.clone())
     }
 
@@ -108,9 +108,13 @@ impl<TM: TreeMeta, A: Actor + std::fmt::Debug> Replica<TM, A> {
     
 }
 
+type TypeId = u64;
+type TypeMeta<'a> = &'a str;
+type TypeActor = u64;
+
 // Returns operations representing a depth-first tree, 
 // with 2 children for each parent.
-fn mktree_ops(ops: &mut Vec<OpMove<&str, u64>>, r: &mut Replica<&str, u64>, parent_id: u64, depth: usize, max_depth: usize) {
+fn mktree_ops(ops: &mut Vec<OpMove<TypeId, TypeMeta, TypeActor>>, r: &mut Replica<TypeId, TypeMeta, TypeActor>, parent_id: u64, depth: usize, max_depth: usize) {
     if depth > max_depth {
         return;
     }
@@ -123,21 +127,21 @@ fn mktree_ops(ops: &mut Vec<OpMove<&str, u64>>, r: &mut Replica<&str, u64>, pare
     }
 }
 
-fn apply_ops_to_replicas<TM, A>(replicas: &mut Vec<Replica<TM, A>>, ops: &Vec<OpMove<TM, A>>)
-    where A: Actor + std::fmt::Debug, TM: TreeMeta {
+fn apply_ops_to_replicas<ID, TM, A>(replicas: &mut Vec<Replica<ID, TM, A>>, ops: &Vec<OpMove<ID, TM, A>>)
+    where ID: TreeId, A: Actor + std::fmt::Debug, TM: TreeMeta {
     for r in replicas.iter_mut() {
         r.apply_ops(ops);
     }
 }
 
 // note: in practice a UUID (at least 128 bits should be used)
-fn new_id() -> u64 {
-    rand::random::<u64>()
+fn new_id() -> TypeId {
+    rand::random::<TypeId>()
 }
 
 // print a treenode, recursively
-fn print_treenode<TM, A>(tree: &Tree<TM, A>, node_id: &A, depth: usize, with_id: bool) 
-    where A: Actor + std::fmt::Debug, TM: TreeMeta + std::fmt::Debug {
+fn print_treenode<ID, TM>(tree: &Tree<ID, TM>, node_id: &ID, depth: usize, with_id: bool) 
+    where ID: TreeId + std::fmt::Debug, TM: TreeMeta + std::fmt::Debug {
 
     let result = tree.find(&node_id);
     let meta = match result {
@@ -159,13 +163,13 @@ fn print_treenode<TM, A>(tree: &Tree<TM, A>, node_id: &A, depth: usize, with_id:
 }
 
 // print a tree.
-fn print_tree<TM, A>(tree: &Tree<TM, A>, root: &A)
-    where A: Actor + std::fmt::Debug, TM: TreeMeta + std::fmt::Debug {
+fn print_tree<ID, TM>(tree: &Tree<ID, TM>, root: &ID)
+    where ID: TreeId + std::fmt::Debug, TM: TreeMeta + std::fmt::Debug {
     print_treenode(tree, root, 0, false);
 }
 
-fn print_replica_trees<TM, A>(repl1: &Replica<TM, A>, repl2: &Replica<TM, A>, root: &A)
-    where A: Actor + std::fmt::Debug, TM: TreeMeta + std::fmt::Debug {
+fn print_replica_trees<ID, TM, A>(repl1: &Replica<ID, TM, A>, repl2: &Replica<ID, TM, A>, root: &ID)
+    where ID: TreeId + std::fmt::Debug, A: Actor + std::fmt::Debug, TM: TreeMeta + std::fmt::Debug {
     println!("\n--replica_1 --");
     print_tree(repl1.tree(), root);
     println!("\n--replica_2 --");
@@ -175,10 +179,10 @@ fn print_replica_trees<TM, A>(repl1: &Replica<TM, A>, repl2: &Replica<TM, A>, ro
 
 // See paper for diagram.
 fn test_concurrent_moves() {
-    let mut r1: Replica<&str, u64> = Replica::new(new_id());
-    let mut r2: Replica<&str, u64> = Replica::new(new_id());
+    let mut r1: Replica<TypeId, TypeMeta, TypeActor> = Replica::new(new_id());
+    let mut r2: Replica<TypeId, TypeMeta, TypeActor> = Replica::new(new_id());
 
-    let ids: HashMap<&str, u64> = [
+    let ids: HashMap<&str, TypeId> = [
         ("root", 0), 
         ("a", new_id()), 
         ("b", new_id()), 
@@ -237,10 +241,10 @@ fn test_concurrent_moves() {
 }
 
 fn test_concurrent_moves_cycle() {
-    let mut r1: Replica<&str, u64> = Replica::new(new_id());
-    let mut r2: Replica<&str, u64> = Replica::new(new_id());
+    let mut r1: Replica<TypeId, TypeMeta, TypeActor> = Replica::new(new_id());
+    let mut r2: Replica<TypeId, TypeMeta, TypeActor> = Replica::new(new_id());
 
-    let ids: HashMap<&str, u64> = [
+    let ids: HashMap<&str, TypeId> = [
         ("root", 0), 
         ("a", new_id()), 
         ("b", new_id()), 
@@ -299,9 +303,9 @@ fn test_concurrent_moves_cycle() {
 
 fn test_walk_deep_tree() {
 
-    let mut r1: Replica<&str, u64> = Replica::new(new_id());
+    let mut r1: Replica<TypeId, TypeMeta, TypeActor> = Replica::new(new_id());
 
-    let ids: HashMap<&str, u64> = [
+    let ids: HashMap<&str, TypeId> = [
         ("root", 0),
     ].iter().cloned().collect();
 
@@ -330,12 +334,12 @@ fn test_walk_deep_tree() {
 
 fn test_truncate_log() {
 
-    let mut replicas: Vec<Replica<&str, u64>> = Vec::new();
+    let mut replicas: Vec<Replica<TypeId, TypeMeta, TypeActor>> = Vec::new();
     let num_replicas = 5;
 
     // start some replicas.
     for _i in 0..num_replicas {
-        let mut r: Replica<&str, u64> = Replica::new(new_id());
+        let mut r: Replica<TypeId, TypeMeta, TypeActor> = Replica::new(new_id());
         r.track_causally_stable_threshold(true);  // needed for truncation
         replicas.push(r);
     }
@@ -359,7 +363,7 @@ fn test_truncate_log() {
 
     #[derive(Debug)]
     struct Stat {
-        pub replica: u64,
+        pub replica: TypeActor,
         pub ops_before_truncate: usize,
         pub ops_after_truncate: usize,
     }
@@ -387,13 +391,13 @@ fn test_truncate_log() {
 
 fn test_move_to_trash() {
 
-    let mut r1: Replica<&str, u64> = Replica::new(new_id());
-    let mut r2: Replica<&str, u64> = Replica::new(new_id());
+    let mut r1: Replica<TypeId, TypeMeta, TypeActor> = Replica::new(new_id());
+    let mut r2: Replica<TypeId, TypeMeta, TypeActor> = Replica::new(new_id());
 
     r1.track_causally_stable_threshold(true);
     r2.track_causally_stable_threshold(true);
 
-    let ids: HashMap<&str, u64> = [
+    let ids: HashMap<&str, TypeId> = [
         ("forest", new_id()),
         ("trash", new_id()), 
         ("root", new_id()), 

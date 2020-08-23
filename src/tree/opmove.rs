@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::{PartialEq, Eq};
 
 use crate::Actor;
-use super::{TreeMeta, LogOpMove, Clock};
+use super::{TreeId, TreeMeta, LogOpMove, Clock};
 use crate::quickcheck::{Arbitrary, Gen};
 
 /// At time $timestamp, $child_id is moved to be a child of $parent_id.
@@ -21,21 +21,21 @@ use crate::quickcheck::{Arbitrary, Gen};
 /// apply these operations using the algorithm described in the rest of
 /// this section.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct OpMove<TM: TreeMeta, A:Actor> {
+pub struct OpMove<ID: TreeId, TM: TreeMeta, A:Actor> {
     /// lamport clock + actor
     pub timestamp: Clock<A>,
     /// parent identifier
-    pub parent_id: A,
+    pub parent_id: ID,
     /// metadata
     pub metadata: TM,
     /// child identifier
-    pub child_id: A,
+    pub child_id: ID,
 }
 
-impl<TM: TreeMeta, A: Actor> OpMove<TM, A> {
+impl<ID: TreeId, TM: TreeMeta, A: Actor> OpMove<ID, TM, A> {
 
     /// new
-    pub fn new(timestamp: Clock<A>, parent_id: A, metadata: TM, child_id: A) -> Self {
+    pub fn new(timestamp: Clock<A>, parent_id: ID, metadata: TM, child_id: ID) -> Self {
         Self {
             timestamp,
             parent_id,
@@ -45,7 +45,7 @@ impl<TM: TreeMeta, A: Actor> OpMove<TM, A> {
     }
 
     /// from_log_op_move
-    pub fn from_log_op_move(l: &LogOpMove<TM, A>) -> Self {
+    pub fn from_log_op_move(l: &LogOpMove<ID, TM, A>) -> Self {
         Self {
             timestamp: l.timestamp.clone(),
             parent_id: l.parent_id.clone(),
@@ -56,15 +56,14 @@ impl<TM: TreeMeta, A: Actor> OpMove<TM, A> {
 }
 
 
-impl<A: Actor + Arbitrary, TM: TreeMeta + Arbitrary> Arbitrary for OpMove<TM, A> {
+impl<ID: TreeId + Arbitrary, A: Actor + Arbitrary, TM: TreeMeta + Arbitrary> Arbitrary for OpMove<ID, TM, A> {
 
     fn arbitrary<G: Gen>(g: &mut G) -> Self {
         Self::new(Clock::arbitrary(g),
-                  A::arbitrary(g),
+                  ID::arbitrary(g),
                   TM::arbitrary(g),
-                  A::arbitrary(g)
+                  ID::arbitrary(g)
         )
     }
-
 }
 

@@ -1,24 +1,23 @@
 use serde::{Deserialize, Serialize};
 use std::cmp::{PartialEq, Eq};
 
-use crate::Actor;
-use super::TreeMeta;
+use super::{TreeId, TreeMeta};
 
 /// tree node
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TreeNode<TM: TreeMeta, A: Actor> {
-    parent_id: A,
+pub struct TreeNode<ID: TreeId, TM: TreeMeta> {
+    parent_id: ID,
     metadata: TM,
     // note: child_id is stored only as a map key in tree.
 }
 
-impl<TM: TreeMeta, A: Actor> TreeNode<TM, A> {
-    // parent_id: A,
+impl<ID: TreeId, TM: TreeMeta> TreeNode<ID, TM> {
+    // parent_id: ID,
     // metadata: TM,
     // note: child_id is stored only as a map key in tree.
 
     /// new
-    pub fn new(parent_id: A, metadata: TM) -> Self {
+    pub fn new(parent_id: ID, metadata: TM) -> Self {
         Self {
             parent_id,
             metadata,
@@ -26,7 +25,7 @@ impl<TM: TreeMeta, A: Actor> TreeNode<TM, A> {
     }
 
     /// parent_id
-    pub fn parent_id(&self) -> &A {
+    pub fn parent_id(&self) -> &ID {
         &self.parent_id
     }
 

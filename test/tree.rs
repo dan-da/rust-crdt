@@ -5,17 +5,19 @@ use crdts::tree::{Clock, State, OpMove};
 use quickcheck::{Arbitrary, Gen, TestResult};
 use rand::Rng;
 
-type TActor = u8;
-type TMeta = char;
+type TypeId = u8;
+type TypeActor = u8;
+type TypeMeta = char;
+type TypeMetaStr<'a> = &'a str;
 
 #[derive(Debug, Clone)]
 struct OperationList {
-    pub ops: Vec<OpMove<TMeta, TActor>>
+    pub ops: Vec<OpMove<TypeId, TypeMeta, TypeActor>>
 }
 
 impl Iterator for OperationList {
-    type Item = OpMove<TMeta, TActor>;
-    fn next(&mut self) -> Option<OpMove<TMeta, TActor>> {
+    type Item = OpMove<TypeId, TypeMeta, TypeActor>;
+    fn next(&mut self) -> Option<OpMove<TypeId, TypeMeta, TypeActor>> {
         self.ops.iter().next().cloned()
     }    
 }
@@ -32,14 +34,14 @@ impl Arbitrary for OperationList {
         };
 
         let mut clock = Clock::arbitrary(g);
-        let mut nodes: Vec::<TActor> = Vec::new();
-        let mut parent_id = TActor::arbitrary(g);
+        let mut nodes: Vec::<TypeId> = Vec::new();
+        let mut parent_id = TypeId::arbitrary(g);
 
-        let mut ops: Vec<OpMove<TMeta, TActor>> = Vec::new();
+        let mut ops: Vec<OpMove<TypeId, TypeMeta, TypeActor>> = Vec::new();
         for _ in 0..size {
-            let next_id = TActor::arbitrary(g);
+            let next_id = TypeId::arbitrary(g);
             nodes.push(next_id.clone());
-            let meta = TMeta::arbitrary(g);
+            let meta = TypeMeta::arbitrary(g);
 
             let op = OpMove::new(tick(&mut clock), parent_id, meta, next_id);
             let idx: usize = rand::random::<usize>() % nodes.len();
@@ -51,8 +53,12 @@ impl Arbitrary for OperationList {
     }
 }
 
-fn new_id() -> u64 {
-    rand::random::<u64>()
+fn new_id() -> TypeId {
+    rand::random::<TypeId>()
+}
+
+fn new_actor() -> TypeActor {
+    rand::random::<TypeActor>()
 }
 
 fn tick<A: Actor>(clock: &mut Clock<A>) -> Clock<A> {
@@ -62,12 +68,12 @@ fn tick<A: Actor>(clock: &mut Clock<A>) -> Clock<A> {
 
 #[test]
 fn test_concurrent_moves() {
-    let mut r1: State<&str, u64> = State::new();
-    let mut r2: State<&str, u64> = State::new();
+    let mut r1: State<TypeId, TypeMetaStr, TypeActor> = State::new();
+    let mut r2: State<TypeId, TypeMetaStr, TypeActor> = State::new();
 
-    let (r1_id, r2_id) = (new_id(), new_id());
-    let mut r1t = Clock::<u64>::new(r1_id, None);
-    let mut r2t = Clock::<u64>::new(r2_id, None);
+    let (r1_id, r2_id) = (new_actor(), new_actor());
+    let mut r1t = Clock::<TypeActor>::new(r1_id, None);
+    let mut r2t = Clock::<TypeActor>::new(r2_id, None);
 
     let (root_id, a_id, b_id, c_id) = (new_id(), new_id(), new_id(), new_id());
 
@@ -101,12 +107,12 @@ fn test_concurrent_moves() {
 
 #[test]
 fn test_concurrent_moves_cycle() {
-    let mut r1: State<&str, u64> = State::new();
-    let mut r2: State<&str, u64> = State::new();
+    let mut r1: State<TypeId, TypeMetaStr, TypeActor> = State::new();
+    let mut r2: State<TypeId, TypeMetaStr, TypeActor> = State::new();
 
-    let (r1_id, r2_id) = (new_id(), new_id());
-    let mut r1t = Clock::<u64>::new(r1_id, None);
-    let mut r2t = Clock::<u64>::new(r2_id, None);
+    let (r1_id, r2_id) = (new_actor(), new_actor());
+    let mut r1t = Clock::<TypeActor>::new(r1_id, None);
+    let mut r2t = Clock::<TypeActor>::new(r2_id, None);
 
     let (root_id, a_id, b_id, c_id) = (new_id(), new_id(), new_id(), new_id());
 
@@ -138,8 +144,8 @@ fn test_concurrent_moves_cycle() {
     assert_eq!(r1, r2);
 }
 
-fn state_from_ops(oplist: &OperationList) -> State<TMeta, TActor> {
-    let mut s: State<TMeta, TActor> = State::new();
+fn state_from_ops(oplist: &OperationList) -> State<TypeId, TypeMeta, TypeActor> {
+    let mut s: State<TypeId, TypeMeta, TypeActor> = State::new();
     for op in oplist.ops.iter().cloned() {
         s.apply_op(op);
     }
