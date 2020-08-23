@@ -1,15 +1,9 @@
-/// Contains the implementation of a crdt-tree
+/// tests for crdt-tree
 
 use crdts::Actor;
 use crdts::tree::{Clock, State, OpMove};
 use quickcheck::{Arbitrary, Gen, TestResult};
 use rand::Rng;
-
-//use crdts::CvRDT;
-//use rand::distributions::Alphanumeric;
-
-//use crate::{Actor, CmRDT};
-//use super::{TreeMeta, TreeNode, OpMove, LogOpMove, Tree, Clock};
 
 type TActor = u8;
 type TMeta = char;
