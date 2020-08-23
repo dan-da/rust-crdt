@@ -171,12 +171,11 @@ impl<TM: TreeMeta, A: Actor> State<TM, A> {
                 // The crdt paper does not even check for this case.
                 //
                 // We throw an exception to catch it during dev/test.
-                #[cfg(debug_assertions)]
-                panic!("applying op with timestamp equal to previous op.  Every op should have a unique timestamp.");
+                // #[cfg(debug_assertions)]
+                // panic!("applying op with timestamp equal to previous op.  Every op should have a unique timestamp.");
 
                 // Production code should just treat it as a non-op.
-                #[cfg(not(debug_assertions))]
-                return state;
+                // #[cfg(not(debug_assertions))]
             } else if op1.timestamp < self.log_op_list[0].timestamp {
                 let logop = self.log_op_list.remove(0);  // take from beginning of array
                 self.undo_op(&logop);
@@ -188,6 +187,19 @@ impl<TM: TreeMeta, A: Actor> State<TM, A> {
             }
         }
     }
+
+    /// todo
+    pub fn apply_ops_into(&mut self, ops: Vec<OpMove<TM, A>>) {
+        for op in ops {
+            self.apply_op(op);
+        }
+    }    
+
+    /// todo
+    pub fn apply_ops(&mut self, ops: &Vec<OpMove<TM, A>>) {
+        self.apply_ops_into(ops.clone())
+    }
+
 }
 
 impl<TM: TreeMeta, A: Actor> CmRDT for State<TM, A> {
@@ -199,4 +211,4 @@ impl<TM: TreeMeta, A: Actor> CmRDT for State<TM, A> {
     }
 }
 
-
+// See <root>/test/tree.rs for tests
