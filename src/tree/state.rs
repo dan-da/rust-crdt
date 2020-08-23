@@ -62,7 +62,7 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
         let len = self.log_op_list.len();
         let mut last_idx: usize = len - 1;
         for (i, v) in self.log_op_list.iter().rev().enumerate() {
-            if v.timestamp < *timestamp {
+            if v.timestamp() < timestamp {
                 last_idx = len - 1 - i;
             } else {
                 break;
@@ -87,7 +87,7 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
             let first = &self.log_op_list[i];
             let second = &self.log_op_list[i+1];
 
-            if !(first.timestamp > second.timestamp) {
+            if !(first.timestamp() > second.timestamp()) {
                 panic!("Log not in descending timestamp order!");
             }
             i += 1;
@@ -109,43 +109,42 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
         // field is filled in based on the state of the tree before the move.
         // If c did not exist in the tree, oldp is set to None.  Otherwise
         // oldp records the previous parent and metadata of c.
-        let oldp = self.tree.find(&op.child_id);
-        let log = LogOpMove::new(&op, oldp.cloned());
+        let oldp = self.tree.find(op.child_id()).cloned();
 
         // ensures no cycles are introduced.  If the node c
         // is being moved, and c is an ancestor of the new parent
         // newp, then the tree is returned unmodified, ie the operation
         // is ignored.
         // Similarly, the operation is also ignored if c == newp
-        if op.child_id == op.parent_id ||
-        self.tree.is_ancestor(&op.parent_id, &op.child_id) {
-            return log;
+        if op.child_id() == op.parent_id() ||
+        self.tree.is_ancestor(op.parent_id(), op.child_id()) {
+            return LogOpMove::new(op, oldp);
         }
 
         // Otherwise, the tree is updated by removing c from
         // its existing parent, if any, and adding the new
         // parent-child relationship (newp, m, c) to the tree.
-        self.tree.rm_child(&op.child_id);
-        let tt = TreeNode::new(op.parent_id, op.metadata);
-        self.tree.add_node(op.child_id, tt);
-        log
+        self.tree.rm_child(op.child_id());
+        let tt = TreeNode::new(op.parent_id().to_owned(), op.metadata().to_owned());
+        self.tree.add_node(op.child_id().to_owned(), tt);
+        LogOpMove::new(op, oldp)
     }
 
     /// undo_op
     pub fn undo_op(&mut self, log: &LogOpMove<ID, TM, A>) {
-        self.tree.rm_child(&log.child_id);
+        self.tree.rm_child(log.child_id());
 
-        if let Some(oldp) = &log.oldp {
-            let tn = TreeNode::new(oldp.parent_id().clone(), oldp.metadata().clone());
-            self.tree.add_node(log.child_id.clone(), tn);
+        if let Some(oldp) = log.oldp() {
+            let tn = TreeNode::new(oldp.parent_id().to_owned(), oldp.metadata().to_owned());
+            self.tree.add_node(log.child_id().to_owned(), tn);
         } 
     }
 
     /// redo_op uses do_op to perform an operation
     /// again and recomputes the LogMove record (which
     /// might have changed due to the effect of the new operation)
-    pub fn redo_op(&mut self, logop: &LogOpMove<ID, TM, A>) {
-        let op = OpMove::from_log_op_move(logop);
+    pub fn redo_op(&mut self, log: LogOpMove<ID, TM, A>) {
+        let op = OpMove::from_log_op_move(log);
         let logop2 = self.do_op(op);
 
         self.add_log_entry(logop2);
@@ -165,7 +164,7 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
             let op2 = self.do_op(op1);
             self.log_op_list = vec![op2];
         } else {
-            if op1.timestamp == self.log_op_list[0].timestamp {
+            if op1.timestamp() == self.log_op_list[0].timestamp() {
                 // This case should never happen in normal operation
                 // because it is required that all timestamps are unique.
                 // The crdt paper does not even check for this case.
@@ -176,11 +175,11 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
 
                 // Production code should just treat it as a non-op.
                 // #[cfg(not(debug_assertions))]
-            } else if op1.timestamp < self.log_op_list[0].timestamp {
+            } else if op1.timestamp() < self.log_op_list[0].timestamp() {
                 let logop = self.log_op_list.remove(0);  // take from beginning of array
                 self.undo_op(&logop);
                 self.apply_op(op1);
-                self.redo_op(&logop);
+                self.redo_op(logop);
             } else {
                 let op2 = self.do_op(op1);
                 self.add_log_entry(op2);

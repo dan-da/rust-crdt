@@ -16,26 +16,51 @@ use super::{TreeId, TreeMeta, TreeNode, OpMove, Clock};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LogOpMove<ID: TreeId, TM: TreeMeta, A:Actor> {
     /// lamport clock + actor
-    pub timestamp: Clock<A>,
+    timestamp: Clock<A>,
     /// parent identifier
-    pub parent_id: ID,
+    parent_id: ID,
     /// metadata
-    pub metadata: TM,
+    metadata: TM,
     /// child identifier
-    pub child_id: ID,
+    child_id: ID,
     /// previous TreeNode, or None
-    pub oldp: Option<TreeNode<ID, TM>>,
+    oldp: Option<TreeNode<ID, TM>>,
 }
 
 impl<ID: TreeId, TM: TreeMeta, A: Actor> LogOpMove<ID, TM, A> {
     /// new
-    pub fn new(op: &OpMove<ID, TM, A>, oldp: Option<TreeNode<ID, TM>>) -> LogOpMove<ID, TM, A> {
+    pub fn new(op: OpMove<ID, TM, A>, oldp: Option<TreeNode<ID, TM>>) -> LogOpMove<ID, TM, A> {
         LogOpMove {
-            timestamp: op.timestamp.clone(),
-            parent_id: op.parent_id.clone(),
-            metadata: op.metadata.clone(),
-            child_id: op.child_id.clone(),
+            timestamp: op.timestamp().to_owned(),
+            parent_id: op.parent_id().to_owned(),
+            metadata: op.metadata().to_owned(),
+            child_id: op.child_id().to_owned(),
             oldp,
         }
+    }
+
+    /// todo
+    pub fn timestamp(&self) -> &Clock<A> {
+        &self.timestamp
+    }
+
+    /// todo
+    pub fn parent_id(&self) -> &ID {
+        &self.parent_id
+    }
+
+    /// todo
+    pub fn metadata(&self) -> &TM {
+        &self.metadata
+    }
+
+    /// todo
+    pub fn child_id(&self) -> &ID {
+        &self.child_id
+    }
+
+    /// todo
+    pub fn oldp(&self) -> &Option<TreeNode<ID, TM>> {
+        &self.oldp
     }
 }

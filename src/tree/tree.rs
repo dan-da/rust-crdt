@@ -51,11 +51,11 @@ impl<ID: TreeId, TM: TreeMeta> Tree<ID, TM> {
     /// adds a node to the tree
     pub fn add_node(&mut self, child_id: ID, tt: TreeNode<ID, TM>) {
         if let Some(n) = self.children.get_mut(tt.parent_id()) {
-            n.insert(child_id.clone(), true);
+            n.insert(child_id.to_owned(), true);
         } else {
             let mut h: HashMap<ID, bool> = HashMap::new();
-            h.insert(child_id.clone(), true);
-            self.children.insert(tt.parent_id().clone(), h);
+            h.insert(child_id.to_owned(), true);
+            self.children.insert(tt.parent_id().to_owned(), h);
         }
         self.triples.insert(child_id, tt);
     }

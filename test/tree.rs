@@ -164,7 +164,7 @@ quickcheck! {
     fn prop_commutative(o1: OperationList, o2: OperationList) -> TestResult {
         
         if o1.ops.len() > 0 && o2.ops.len() > 0 &&
-            o1.ops[0].timestamp.actor_id() == o2.ops[0].timestamp.actor_id() {
+            o1.ops[0].timestamp().actor_id() == o2.ops[0].timestamp().actor_id() {
             return TestResult::discard();
         }
 
@@ -185,19 +185,19 @@ quickcheck! {
 
         // discard if o1 actor is same as o2 actor
         if o1.ops.len() > 0 && o2.ops.len() > 0 && 
-            o1.ops[0].timestamp.actor_id() == o2.ops[0].timestamp.actor_id() {
+            o1.ops[0].timestamp().actor_id() == o2.ops[0].timestamp().actor_id() {
             return TestResult::discard();
         }
 
         // discard if o1 actor is same as o3 actor
         if o1.ops.len() > 0 && o3.ops.len() > 0 && 
-            o1.ops[0].timestamp.actor_id() == o3.ops[0].timestamp.actor_id() {
+            o1.ops[0].timestamp().actor_id() == o3.ops[0].timestamp().actor_id() {
             return TestResult::discard();
         }
 
         // discard if o2 actor is same as o3 actor
         if o2.ops.len() > 0 && o3.ops.len() > 0 && 
-            o2.ops[0].timestamp.actor_id() == o3.ops[0].timestamp.actor_id() {
+            o2.ops[0].timestamp().actor_id() == o3.ops[0].timestamp().actor_id() {
             return TestResult::discard();
         }
 

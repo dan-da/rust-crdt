@@ -23,13 +23,13 @@ use crate::quickcheck::{Arbitrary, Gen};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OpMove<ID: TreeId, TM: TreeMeta, A:Actor> {
     /// lamport clock + actor
-    pub timestamp: Clock<A>,
+    timestamp: Clock<A>,
     /// parent identifier
-    pub parent_id: ID,
+    parent_id: ID,
     /// metadata
-    pub metadata: TM,
+    metadata: TM,
     /// child identifier
-    pub child_id: ID,
+    child_id: ID,
 }
 
 impl<ID: TreeId, TM: TreeMeta, A: Actor> OpMove<ID, TM, A> {
@@ -44,13 +44,33 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> OpMove<ID, TM, A> {
         }
     }
 
+    /// todo
+    pub fn timestamp(&self) -> &Clock<A> {
+        &self.timestamp
+    }
+
+    /// todo
+    pub fn parent_id(&self) -> &ID {
+        &self.parent_id
+    }
+
+    /// todo
+    pub fn metadata(&self) -> &TM {
+        &self.metadata
+    }
+
+    /// todo
+    pub fn child_id(&self) -> &ID {
+        &self.child_id
+    }
+
     /// from_log_op_move
-    pub fn from_log_op_move(l: &LogOpMove<ID, TM, A>) -> Self {
+    pub fn from_log_op_move(l: LogOpMove<ID, TM, A>) -> Self {
         Self {
-            timestamp: l.timestamp.clone(),
-            parent_id: l.parent_id.clone(),
-            metadata: l.metadata.clone(),
-            child_id: l.child_id.clone(),
+            timestamp: l.timestamp().to_owned(),
+            parent_id: l.parent_id().to_owned(),
+            metadata: l.metadata().to_owned(),
+            child_id: l.child_id().to_owned(),
         }
     }
 }

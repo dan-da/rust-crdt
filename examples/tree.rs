@@ -38,18 +38,18 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor + std::fmt::Debug> Replica<ID, TM, A> {
 
     pub fn apply_ops_noref(&mut self, ops: Vec<OpMove<ID, TM, A>>) {
         for op in ops.clone() {
-            self.time = self.time.merge(&op.timestamp);
+            self.time = self.time.merge(op.timestamp());
 
             // store latest timestamp for this actor.
             // This is only needed for calculation of
             // causally_stable_threshold.  If that is not
             // required, it needn't execute.
             if self.track_causally_stable_threshold  {
-                let id = op.timestamp.actor_id();
+                let id = op.timestamp().actor_id();
                 let result = self.latest_time_by_replica.get(id);
                 match result {
-                    Some(latest) if !(op.timestamp > *latest) => {},
-                    _ => { self.latest_time_by_replica.insert(id.clone(), op.timestamp.clone()); },
+                    Some(latest) if !(op.timestamp() > latest) => {},
+                    _ => { self.latest_time_by_replica.insert(id.clone(), op.timestamp().clone()); },
                 };
             }
 
@@ -450,8 +450,8 @@ fn test_move_to_trash() {
     //        "trash should not be emptied" condition.    
     let result = r2.causally_stable_threshold();
     match result {
-        Some(cst) if cst < &ops[0].timestamp => {
-            println!("\ncausally stable threshold:\n{:#?}\n\ntrash operation:\n{:#?}", cst, ops[0].timestamp);
+        Some(cst) if cst < ops[0].timestamp() => {
+            println!("\ncausally stable threshold:\n{:#?}\n\ntrash operation:\n{:#?}", cst, ops[0].timestamp());
             panic!("!error: causally stable threshold is less than trash operation timestamp");
         } 
         None => panic!("!error: causally stable threshold not found"),
