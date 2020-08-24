@@ -144,7 +144,7 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
     /// again and recomputes the LogMove record (which
     /// might have changed due to the effect of the new operation)
     pub fn redo_op(&mut self, log: LogOpMove<ID, TM, A>) {
-        let op = OpMove::from_log_op_move(log);
+        let op = OpMove::from(log);
         let logop2 = self.do_op(op);
 
         self.add_log_entry(logop2);

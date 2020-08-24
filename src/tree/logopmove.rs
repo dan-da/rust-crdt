@@ -15,14 +15,8 @@ use super::{TreeId, TreeMeta, TreeNode, OpMove, Clock};
 /// The get_parent() function implements this.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LogOpMove<ID: TreeId, TM: TreeMeta, A:Actor> {
-    /// lamport clock + actor
-    timestamp: Clock<A>,
-    /// parent identifier
-    parent_id: ID,
-    /// metadata
-    metadata: TM,
-    /// child identifier
-    child_id: ID,
+    // todo
+    op: OpMove<ID, TM, A>,
     /// previous TreeNode, or None
     oldp: Option<TreeNode<ID, TM>>,
 }
@@ -31,36 +25,39 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> LogOpMove<ID, TM, A> {
     /// new
     pub fn new(op: OpMove<ID, TM, A>, oldp: Option<TreeNode<ID, TM>>) -> LogOpMove<ID, TM, A> {
         LogOpMove {
-            timestamp: op.timestamp().to_owned(),
-            parent_id: op.parent_id().to_owned(),
-            metadata: op.metadata().to_owned(),
-            child_id: op.child_id().to_owned(),
+            op,
             oldp,
         }
     }
 
     /// todo
     pub fn timestamp(&self) -> &Clock<A> {
-        &self.timestamp
+        self.op.timestamp()
     }
 
     /// todo
     pub fn parent_id(&self) -> &ID {
-        &self.parent_id
+        self.op.parent_id()
     }
 
     /// todo
     pub fn metadata(&self) -> &TM {
-        &self.metadata
+        self.op.metadata()
     }
 
     /// todo
     pub fn child_id(&self) -> &ID {
-        &self.child_id
+        &self.op.child_id()
     }
 
     /// todo
     pub fn oldp(&self) -> &Option<TreeNode<ID, TM>> {
         &self.oldp
     }
+
+    /// todo
+    pub fn op_into(self) -> OpMove<ID, TM, A> {
+        self.op
+    }
+
 }

@@ -63,18 +63,13 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> OpMove<ID, TM, A> {
     pub fn child_id(&self) -> &ID {
         &self.child_id
     }
-
-    /// from_log_op_move
-    pub fn from_log_op_move(l: LogOpMove<ID, TM, A>) -> Self {
-        Self {
-            timestamp: l.timestamp().to_owned(),
-            parent_id: l.parent_id().to_owned(),
-            metadata: l.metadata().to_owned(),
-            child_id: l.child_id().to_owned(),
-        }
-    }
 }
 
+impl<ID: TreeId, A: Actor, TM: TreeMeta> From<LogOpMove<ID, TM, A>> for OpMove<ID, TM, A> {
+    fn from(l: LogOpMove<ID, TM, A>) -> Self {
+        l.op_into()
+    }
+}
 
 impl<ID: TreeId + Arbitrary, A: Actor + Arbitrary, TM: TreeMeta + Arbitrary> Arbitrary for OpMove<ID, TM, A> {
 
