@@ -235,9 +235,6 @@ fn test_concurrent_moves() {
         println!("\n-- replica_2 state --");
         println!("{:#?}", r2.state);
     }
-    
-    r1.state.check_log_is_descending();
-    r2.state.check_log_is_descending();
 }
 
 fn test_concurrent_moves_cycle() {
@@ -295,10 +292,7 @@ fn test_concurrent_moves_cycle() {
         println!("{:#?}", r1.state);
         println!("\n-- replica_2 state --");
         println!("{:#?}", r2.state);
-    }
-    
-    r1.state.check_log_is_descending();
-    r2.state.check_log_is_descending();
+    }   
 }
 
 fn test_walk_deep_tree() {

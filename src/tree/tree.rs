@@ -4,7 +4,21 @@ use std::cmp::{PartialEq, Eq};
 
 use super::{TreeId, TreeMeta, TreeNode};
 
-/// tree
+/// From the paper:
+/// ----
+/// We can represent the tree as a set of (parent, meta, child)
+/// triples, denoted in Isabelle/HOL as (’n × ’m × ’n) set. When
+/// we have (p, m, c) ∈ tree, that means c is a child of p in the tree,
+/// with associated metadata m. Given a tree, we can construct
+/// a new tree’ in which the child c is moved to a new parent p,
+/// with associated metadata m, as follows:
+/// 
+/// tree’ = {(p’, m’, c’) ∈ tree. c’ != c} ∪ {(p, m, c)}
+/// 
+/// That is, we remove any existing parent-child relationship
+/// for c from the set tree, and then add {(p, m, c)} to represent
+/// the new parent-child relationship.
+/// ----
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Tree<ID: TreeId, TM: TreeMeta> {
     triples: HashMap<ID, TreeNode<ID, TM>>,   // tree_nodes, indexed by child_id.
@@ -13,7 +27,7 @@ pub struct Tree<ID: TreeId, TM: TreeMeta> {
 
 impl<ID: TreeId, TM: TreeMeta> Tree<ID, TM> {
 
-    /// new 
+    /// create a new Tree instance
     pub fn new() -> Self {
         Self {
             triples: HashMap::<ID, TreeNode<ID, TM>>::new(),   // tree_nodes, indexed by child_id.
@@ -126,5 +140,16 @@ impl<ID: TreeId, TM: TreeMeta> Tree<ID, TM> {
             }
         }
         false
+    }
+}
+
+/// Implement IntoIterator for Tree.  This is useful for
+/// walking all Nodes in tree without knowing a starting point.
+impl<ID: TreeId, TM: TreeMeta> IntoIterator for Tree<ID, TM> {
+    type Item = (ID, TreeNode<ID, TM>);
+    type IntoIter = std::collections::hash_map::IntoIter<ID, TreeNode<ID, TM>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.triples.into_iter()
     }
 }

@@ -1,4 +1,12 @@
-/// Contains the implementation of a crdt-tree
+/// Contains the crdt-tree algorithm.
+/// 
+/// This code aims to be an accurate implementation of the
+/// tree crdt described in:
+/// 
+/// "A highly-available move operation for replicated trees 
+/// and distributed filesystems" [1] by Martin Klepmann, et al.
+/// 
+/// [1] https://martin.kleppmann.com/papers/move-op.pdf
 
 use serde::{Deserialize, Serialize};
 use std::cmp::{PartialEq, Eq};
@@ -6,17 +14,22 @@ use std::cmp::{PartialEq, Eq};
 use crate::{Actor, CmRDT};
 use super::{TreeId, TreeMeta, TreeNode, OpMove, LogOpMove, Tree, Clock};
 
-/// State
+/// State.  This is the primary interface for working with a
+/// Tree CRDT.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct State<ID: TreeId, TM: TreeMeta, A:Actor> {
-    log_op_list: Vec<LogOpMove<ID, TM, A>>,  // a list of LogMove in descending timestamp order.
-    /// tree
+
+    // a list of LogMove in descending timestamp order.
+    log_op_list: Vec<LogOpMove<ID, TM, A>>,  
+
+    // a tree structure, ie a set of (parent, meta, child) triples
+    // that represent the current state of the tree.
     tree: Tree<ID, TM>,
 }
 
 impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
 
-    /// new
+    /// create a new State
     pub fn new() -> Self {
         Self {
             log_op_list: Vec::<LogOpMove<ID, TM, A>>::default(),
@@ -24,25 +37,17 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
         }
     }
 
-    /// from_existing
-    pub fn from_existing(log_op_list: Vec<LogOpMove<ID, TM, A>>, tree: Tree<ID, TM>) -> Self {
-        Self {
-            log_op_list,
-            tree,
-        }
-    }
-
-    /// tree
+    /// returns tree reference
     pub fn tree(&self) -> &Tree<ID, TM> {
         &self.tree
     }
 
-    /// mutable tree reference
+    /// returns mutable tree reference
     pub fn tree_mut(&mut self) -> &mut Tree<ID, TM> {
         &mut self.tree
     }
 
-    /// log
+    /// returns log reference
     pub fn log(&self) -> &Vec<LogOpMove<ID, TM, A>> {
         &self.log_op_list
     }
@@ -78,20 +83,6 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
         }
 
         last_idx + 1 < len
-    }
-
-    /// for testing. not part of crdt-tree algo.
-    pub fn check_log_is_descending(&self) {
-        let mut i = 0;
-        while i < self.log_op_list.len()-1 {
-            let first = &self.log_op_list[i];
-            let second = &self.log_op_list[i+1];
-
-            if !(first.timestamp() > second.timestamp()) {
-                panic!("Log not in descending timestamp order!");
-            }
-            i += 1;
-        }
     }
 
     /// The do_op function performs the actual work of applying
@@ -200,6 +191,18 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
     }
 
 }
+
+impl<ID: TreeId, A: Actor, TM: TreeMeta> From<(Vec<LogOpMove<ID, TM, A>>, Tree<ID, TM>)> for State<ID, TM, A> {
+
+    /// creates State from tuple (Vec<LogOpMove>, Tree)
+    fn from(e: (Vec<LogOpMove<ID, TM, A>>, Tree<ID, TM>)) -> Self {
+        Self {
+            log_op_list: e.0,
+            tree: e.1,
+        }
+    }
+}
+
 
 impl<ID: TreeId, TM: TreeMeta, A: Actor> CmRDT for State<ID, TM, A> {
     type Op = OpMove<ID, TM, A>;

@@ -12,10 +12,10 @@ pub struct Clock<A: Actor> {
 }
 
 impl<A: Actor> Clock<A> {
-//    actor_id: A,
-//    counter: u64,
 
-    /// new
+    /// create new Clock instance
+    /// 
+    /// typically counter should be None
     pub fn new(actor_id: A, counter: Option<u64>) -> Self {
         Self {
             actor_id,
@@ -23,17 +23,23 @@ impl<A: Actor> Clock<A> {
         }
     }
 
-    /// returns a new la_time with same actor but counter incremented by 1.
+    /// returns a new Clock with same actor but counter incremented by 1.
     pub fn inc(&self) -> Self {
         Self::new(self.actor_id.clone(), Some(self.counter + 1))
     }
 
-    /// actor_id
+    /// increments clock counter and returns a clone
+    pub fn tick(&mut self) -> Self {
+        self.counter += 1;
+        self.clone()
+    }
+
+    /// returns actor_id reference
     pub fn actor_id(&self) -> &A {
         return &self.actor_id;
     }
 
-    /// returns a new la_time with same actor but counter is
+    /// returns a new Clock with same actor but counter is
     /// max(this_counter, other_counter)
     pub fn merge(&self, other: &Self) -> Self {
         Self::new(self.actor_id.clone(), Some(std::cmp::max(self.counter, other.counter)))
@@ -42,7 +48,7 @@ impl<A: Actor> Clock<A> {
 
 impl<A: Actor> Ord for Clock<A> {
 
-    /// compares this la_time with another.
+    /// compares this Clock with another.
     /// if counters are unequal, returns -1 or 1 accordingly.
     /// if counters are equal, returns -1, 0, or 1 based on actor_id.
     ///    (this is arbitrary, but deterministic.)
@@ -81,6 +87,7 @@ impl<A: Actor> PartialEq for Clock<A> {
 
 impl<A: Actor> Eq for Clock<A> {}
 
+// Generate arbitrary (random) clocks.  needed by quickcheck.
 impl<A: Actor + Arbitrary> Arbitrary for Clock<A> {
 
     fn arbitrary<G: Gen>(g: &mut G) -> Self {
