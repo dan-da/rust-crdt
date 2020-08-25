@@ -5,10 +5,11 @@ use quickcheck::{Arbitrary, Gen, TestResult};
 use rand::Rng;
 use std::collections::HashMap;
 
+// Define some "real" types for use in the tests.
 type TypeId = u8;
 type TypeActor = u8;
-type TypeMeta = char;
-type TypeMetaStr<'a> = &'a str;
+type TypeMeta = char;             // used by quickcheck tests
+type TypeMetaStr<'a> = &'a str;   // used by manual tests
 
 // A list of quasi-random operations for use by quickcheck.
 #[derive(Debug, Clone)]
