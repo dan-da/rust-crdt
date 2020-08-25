@@ -1,12 +1,21 @@
-//! A pure-Rust library of thoroughly-tested, serializable CRDT's.
-//!
-//! [Conflict-free Replicated Data Types][crdt] (CRDTs) are data structures
-//! which can be replicated across multiple networked nodes, and whose
-//! properties allow for deterministic, local resolution of
-//! possible inconsistencies which might result from concurrent
-//! operations.
-//!
-//! [crdt]: https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type
+//! Implements Tree Conflict-Free Replicated Data Type (CRDT).
+//! 
+//! For usage/examples, see:
+//!   examples/tree.rs
+//!   test/tree.rs
+//! 
+//! This code aims to be an accurate implementation of the
+//! tree crdt described in:
+//! 
+//! "A highly-available move operation for replicated trees 
+//! and distributed filesystems" [1] by Martin Klepmann, et al.
+//! 
+//! [1] https://martin.kleppmann.com/papers/move-op.pdf
+//! 
+//! For clarity, data structures in this implementation are named
+//! the same as in the paper (State, Tree) or close to
+//! (OpMove --> Move, LogOpMove --> LogOp).  Some are not explicitly
+//! named in the paper, such as TreeId, TreeMeta, TreeNode, Clock.
 #![deny(missing_docs)]
 
 /// This module contains a Tree.
