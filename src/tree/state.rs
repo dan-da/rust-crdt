@@ -190,14 +190,14 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
         }
     }
 
-    /// todo
+    /// applies a list of operations and consume them. (no cloning)
     pub fn apply_ops_into(&mut self, ops: Vec<OpMove<ID, TM, A>>) {
         for op in ops {
             self.apply_op(op);
         }
     }    
 
-    /// todo
+    /// applies a list of operations reference, cloning each op. 
     pub fn apply_ops(&mut self, ops: &Vec<OpMove<ID, TM, A>>) {
         self.apply_ops_into(ops.clone())
     }
