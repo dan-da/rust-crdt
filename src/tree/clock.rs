@@ -54,7 +54,7 @@ impl<A: Actor> Clock<A> {
 
     /// returns actor_id reference
     pub fn actor_id(&self) -> &A {
-        return &self.actor_id;
+        &self.actor_id
     }
 
     /// returns a new Clock with same actor but counter is
@@ -73,19 +73,10 @@ impl<A: Actor> Ord for Clock<A> {
     /// if counters are equal, returns -1, 0, or 1 based on actor_id.
     ///    (this is arbitrary, but deterministic.)
     fn cmp(&self, other: &Self) -> Ordering {
-        if self.counter == other.counter {
-            if self.actor_id < other.actor_id {
-                return Ordering::Less;
-            } else if self.actor_id > other.actor_id {
-                return Ordering::Greater;
-            } else {
-                return Ordering::Equal;
-            }
-        } else if self.counter > other.counter {
-            return Ordering::Greater;
-        } else {
-            // self.counter < other.counter
-            return Ordering::Less;
+        match self.counter.cmp(&other.counter) {
+            Ordering::Equal => self.actor_id.cmp(&other.actor_id),
+            Ordering::Greater => Ordering::Greater,
+            Ordering::Less => Ordering::Less,
         }
     }
 }

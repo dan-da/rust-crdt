@@ -38,7 +38,7 @@ use super::{TreeId, TreeMeta, TreeNode};
 /// for c from the set tree, and then add {(p, m, c)} to represent
 /// the new parent-child relationship.
 /// ----
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Tree<ID: TreeId, TM: TreeMeta> {
     triples: HashMap<ID, TreeNode<ID, TM>>, // tree_nodes, indexed by child_id.
     children: HashMap<ID, HashMap<ID, bool>>, // parent_id => [child_id => true].  optimization.
@@ -60,7 +60,7 @@ impl<ID: TreeId, TM: TreeMeta> Tree<ID, TM> {
             if let Some(map) = self.children.get_mut(t.parent_id()) {
                 map.remove(child_id);
                 // cleanup parent entry if empty.
-                if map.len() == 0 {
+                if map.is_empty() {
                     self.children.remove(t.parent_id());
                 }
             }
@@ -150,15 +150,11 @@ impl<ID: TreeId, TM: TreeMeta> Tree<ID, TM> {
     /// returns bool
     pub fn is_ancestor(&self, child_id: &ID, ancestor_id: &ID) -> bool {
         let mut target_id = child_id;
-        loop {
-            if let Some(n) = self.find(&target_id) {
-                if n.parent_id() == ancestor_id {
-                    return true;
-                }
-                target_id = n.parent_id();
-            } else {
-                break;
+        while let Some(n) = self.find(&target_id) {
+            if n.parent_id() == ancestor_id {
+                return true;
             }
+            target_id = n.parent_id();
         }
         false
     }

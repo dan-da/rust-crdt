@@ -19,6 +19,7 @@
 #![deny(missing_docs)]
 
 /// This module contains a Tree.
+#[allow(clippy::module_inception)]
 pub mod tree;
 
 /// This module contains State.

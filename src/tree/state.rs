@@ -21,7 +21,7 @@
 //! named in the paper, such as TreeId, TreeMeta, TreeNode, Clock.
 
 use serde::{Deserialize, Serialize};
-use std::cmp::{Eq, PartialEq};
+use std::cmp::{Eq, Ordering, PartialEq};
 
 use super::{Clock, LogOpMove, OpMove, Tree, TreeId, TreeMeta, TreeNode};
 use crate::{Actor, CmRDT};
@@ -158,29 +158,33 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
     /// type class, and they can therefore be compared with the
     /// < operator during a linear (or total) order.
     pub fn apply_op(&mut self, op1: OpMove<ID, TM, A>) {
-        if self.log_op_list.len() == 0 {
+        if self.log_op_list.is_empty() {
             let op2 = self.do_op(op1);
             self.log_op_list = vec![op2];
         } else {
-            if op1.timestamp() == self.log_op_list[0].timestamp() {
-                // This case should never happen in normal operation
-                // because it is required that all timestamps are unique.
-                // The crdt paper does not even check for this case.
-                //
-                // We throw an exception to catch it during dev/test.
-                // #[cfg(debug_assertions)]
-                // panic!("applying op with timestamp equal to previous op.  Every op should have a unique timestamp.");
+            match op1.timestamp().cmp(&self.log_op_list[0].timestamp()) {
+                Ordering::Equal => {
+                    // This case should never happen in normal operation
+                    // because it is required that all timestamps are unique.
+                    // The crdt paper does not even check for this case.
+                    //
+                    // We can throw an exception to catch it during dev/test.
+                    // #[cfg(debug_assertions)]
+                    // panic!("applying op with timestamp equal to previous op.  Every op should have a unique timestamp.");
 
-                // Production code should just treat it as a non-op.
-                // #[cfg(not(debug_assertions))]
-            } else if op1.timestamp() < self.log_op_list[0].timestamp() {
-                let logop = self.log_op_list.remove(0); // take from beginning of array
-                self.undo_op(&logop);
-                self.apply_op(op1);
-                self.redo_op(logop);
-            } else {
-                let op2 = self.do_op(op1);
-                self.add_log_entry(op2);
+                    // Production code should just treat it as a non-op.
+                    // #[cfg(not(debug_assertions))]
+                }
+                Ordering::Less => {
+                    let logop = self.log_op_list.remove(0); // take from beginning of array
+                    self.undo_op(&logop);
+                    self.apply_op(op1);
+                    self.redo_op(logop);
+                }
+                Ordering::Greater => {
+                    let op2 = self.do_op(op1);
+                    self.add_log_entry(op2);
+                }
             }
         }
     }
@@ -193,16 +197,25 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
     }
 
     /// applies a list of operations reference, cloning each op.
-    pub fn apply_ops(&mut self, ops: &Vec<OpMove<ID, TM, A>>) {
-        self.apply_ops_into(ops.clone())
+    pub fn apply_ops(&mut self, ops: &[OpMove<ID, TM, A>]) {
+        self.apply_ops_into(ops.to_vec())
     }
 }
+
+impl<ID: TreeId, A: Actor, TM: TreeMeta> Default for State<ID, TM, A> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// to make clippy happy.
+type LogOpList<ID, TM, A> = Vec<LogOpMove<ID, TM, A>>;
 
 impl<ID: TreeId, A: Actor, TM: TreeMeta> From<(Vec<LogOpMove<ID, TM, A>>, Tree<ID, TM>)>
     for State<ID, TM, A>
 {
     /// creates State from tuple (Vec<LogOpMove>, Tree)
-    fn from(e: (Vec<LogOpMove<ID, TM, A>>, Tree<ID, TM>)) -> Self {
+    fn from(e: (LogOpList<ID, TM, A>, Tree<ID, TM>)) -> Self {
         Self {
             log_op_list: e.0,
             tree: e.1,
