@@ -1,38 +1,37 @@
 //! Holds Tree CRDT state and implements the core algorithm.
-//! 
+//!
 //! State is the primary object to instantiate that represents
 //! a CRDT Tree.
-//! 
+//!
 //! For usage/examples, see:
 //!   examples/tree.rs
 //!   test/tree.rs
-//! 
+//!
 //! This code aims to be an accurate implementation of the
 //! tree crdt described in:
-//! 
-//! "A highly-available move operation for replicated trees 
+//!
+//! "A highly-available move operation for replicated trees
 //! and distributed filesystems" [1] by Martin Klepmann, et al.
-//! 
+//!
 //! [1] https://martin.kleppmann.com/papers/move-op.pdf
-//! 
+//!
 //! For clarity, data structures in this implementation are named
 //! the same as in the paper (State, Tree) or close to
 //! (OpMove --> Move, LogOpMove --> LogOp).  Some are not explicitly
 //! named in the paper, such as TreeId, TreeMeta, TreeNode, Clock.
 
 use serde::{Deserialize, Serialize};
-use std::cmp::{PartialEq, Eq};
+use std::cmp::{Eq, PartialEq};
 
+use super::{Clock, LogOpMove, OpMove, Tree, TreeId, TreeMeta, TreeNode};
 use crate::{Actor, CmRDT};
-use super::{TreeId, TreeMeta, TreeNode, OpMove, LogOpMove, Tree, Clock};
 
 /// State.  This is the primary interface for working with a
 /// Tree CRDT.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct State<ID: TreeId, TM: TreeMeta, A:Actor> {
-
+pub struct State<ID: TreeId, TM: TreeMeta, A: Actor> {
     // a list of LogMove in descending timestamp order.
-    log_op_list: Vec<LogOpMove<ID, TM, A>>,  
+    log_op_list: Vec<LogOpMove<ID, TM, A>>,
 
     // a tree structure, ie a set of (parent, meta, child) triples
     // that represent the current state of the tree.
@@ -40,7 +39,6 @@ pub struct State<ID: TreeId, TM: TreeMeta, A:Actor> {
 }
 
 impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
-
     /// create a new State
     pub fn new() -> Self {
         Self {
@@ -73,7 +71,6 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
     /// removes log entries before a given timestamp.
     /// not part of crdt-tree algo.
     pub fn truncate_log_before(&mut self, timestamp: &Clock<A>) -> bool {
-
         // newest entries are at start of list, so to find
         // oldest entries we iterate from the end towards start.
         let len = self.log_op_list.len();
@@ -100,12 +97,11 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
     /// The do_op function performs the actual work of applying
     /// a move operation.
     ///
-    /// This function takes as argument a pair consisting of a 
+    /// This function takes as argument a pair consisting of a
     /// Move operation and the current tree and it returns a pair
     /// consisting of a LogMove operation (which will be added to the log) and
     /// an updated tree.
     pub fn do_op(&mut self, op: OpMove<ID, TM, A>) -> LogOpMove<ID, TM, A> {
-
         // When a replica applies a Move op to its tree, it also records
         // a corresponding LogMove op in its log.  The t, p, m, and c
         // fields are taken directly from the Move record, while the oldp
@@ -119,8 +115,7 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
         // newp, then the tree is returned unmodified, ie the operation
         // is ignored.
         // Similarly, the operation is also ignored if c == newp
-        if op.child_id() == op.parent_id() ||
-        self.tree.is_ancestor(op.parent_id(), op.child_id()) {
+        if op.child_id() == op.parent_id() || self.tree.is_ancestor(op.parent_id(), op.child_id()) {
             return LogOpMove::new(op, oldp);
         }
 
@@ -140,7 +135,7 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
         if let Some(oldp) = log.oldp() {
             let tn = TreeNode::new(oldp.parent_id().to_owned(), oldp.metadata().to_owned());
             self.tree.add_node(log.child_id().to_owned(), tn);
-        } 
+        }
     }
 
     /// redo_op uses do_op to perform an operation
@@ -179,7 +174,7 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
                 // Production code should just treat it as a non-op.
                 // #[cfg(not(debug_assertions))]
             } else if op1.timestamp() < self.log_op_list[0].timestamp() {
-                let logop = self.log_op_list.remove(0);  // take from beginning of array
+                let logop = self.log_op_list.remove(0); // take from beginning of array
                 self.undo_op(&logop);
                 self.apply_op(op1);
                 self.redo_op(logop);
@@ -195,17 +190,17 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> State<ID, TM, A> {
         for op in ops {
             self.apply_op(op);
         }
-    }    
+    }
 
-    /// applies a list of operations reference, cloning each op. 
+    /// applies a list of operations reference, cloning each op.
     pub fn apply_ops(&mut self, ops: &Vec<OpMove<ID, TM, A>>) {
         self.apply_ops_into(ops.clone())
     }
-
 }
 
-impl<ID: TreeId, A: Actor, TM: TreeMeta> From<(Vec<LogOpMove<ID, TM, A>>, Tree<ID, TM>)> for State<ID, TM, A> {
-
+impl<ID: TreeId, A: Actor, TM: TreeMeta> From<(Vec<LogOpMove<ID, TM, A>>, Tree<ID, TM>)>
+    for State<ID, TM, A>
+{
     /// creates State from tuple (Vec<LogOpMove>, Tree)
     fn from(e: (Vec<LogOpMove<ID, TM, A>>, Tree<ID, TM>)) -> Self {
         Self {
@@ -214,7 +209,6 @@ impl<ID: TreeId, A: Actor, TM: TreeMeta> From<(Vec<LogOpMove<ID, TM, A>>, Tree<I
         }
     }
 }
-
 
 impl<ID: TreeId, TM: TreeMeta, A: Actor> CmRDT for State<ID, TM, A> {
     type Op = OpMove<ID, TM, A>;

@@ -1,26 +1,25 @@
 //! Implements Lamport Clock
-//! 
+//!
 //! For usage/examples, see:
 //!   examples/tree.rs
 //!   test/tree.rs
-//! 
+//!
 //! This code aims to be an accurate implementation of the
 //! tree crdt described in:
-//! 
-//! "A highly-available move operation for replicated trees 
+//!
+//! "A highly-available move operation for replicated trees
 //! and distributed filesystems" [1] by Martin Klepmann, et al.
-//! 
+//!
 //! [1] https://martin.kleppmann.com/papers/move-op.pdf
-//! 
+//!
 //! For clarity, data structures in this implementation are named
 //! the same as in the paper (State, Tree) or close to
 //! (OpMove --> Move, LogOpMove --> LogOp).  Some are not explicitly
 //! named in the paper, such as TreeId, TreeMeta, TreeNode, Clock.
 
-
-use serde::{Deserialize, Serialize};
-use std::cmp::{Ordering, Ord, PartialOrd, PartialEq, Eq};
 use crate::quickcheck::{Arbitrary, Gen};
+use serde::{Deserialize, Serialize};
+use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 
 use crate::Actor;
 
@@ -32,9 +31,8 @@ pub struct Clock<A: Actor> {
 }
 
 impl<A: Actor> Clock<A> {
-
     /// create new Clock instance
-    /// 
+    ///
     /// typically counter should be None
     pub fn new(actor_id: A, counter: Option<u64>) -> Self {
         Self {
@@ -62,12 +60,14 @@ impl<A: Actor> Clock<A> {
     /// returns a new Clock with same actor but counter is
     /// max(this_counter, other_counter)
     pub fn merge(&self, other: &Self) -> Self {
-        Self::new(self.actor_id.clone(), Some(std::cmp::max(self.counter, other.counter)))
+        Self::new(
+            self.actor_id.clone(),
+            Some(std::cmp::max(self.counter, other.counter)),
+        )
     }
 }
 
 impl<A: Actor> Ord for Clock<A> {
-
     /// compares this Clock with another.
     /// if counters are unequal, returns -1 or 1 accordingly.
     /// if counters are equal, returns -1, 0, or 1 based on actor_id.
@@ -76,18 +76,15 @@ impl<A: Actor> Ord for Clock<A> {
         if self.counter == other.counter {
             if self.actor_id < other.actor_id {
                 return Ordering::Less;
-            }
-            else if self.actor_id > other.actor_id {
+            } else if self.actor_id > other.actor_id {
                 return Ordering::Greater;
-            }
-            else {
+            } else {
                 return Ordering::Equal;
             }
-        }
-        else if self.counter > other.counter {
+        } else if self.counter > other.counter {
             return Ordering::Greater;
-        }
-        else { // self.counter < other.counter
+        } else {
+            // self.counter < other.counter
             return Ordering::Less;
         }
     }
@@ -109,13 +106,12 @@ impl<A: Actor> Eq for Clock<A> {}
 
 // Generate arbitrary (random) clocks.  needed by quickcheck.
 impl<A: Actor + Arbitrary> Arbitrary for Clock<A> {
-
     fn arbitrary<G: Gen>(g: &mut G) -> Self {
         Self {
             actor_id: A::arbitrary(g),
             counter: u64::arbitrary(g),
         }
-    }    
+    }
 
     fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
         let mut shrunk_clocks = Vec::new();
@@ -125,7 +121,6 @@ impl<A: Actor + Arbitrary> Arbitrary for Clock<A> {
         Box::new(shrunk_clocks.into_iter())
     }
 }
-
 
 #[cfg(test)]
 mod test {

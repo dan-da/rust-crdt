@@ -1,26 +1,25 @@
 //! Implements Tree, a set of triples representing current tree structure.
-//! 
+//!
 //! For usage/examples, see:
 //!   examples/tree.rs
 //!   test/tree.rs
-//! 
+//!
 //! This code aims to be an accurate implementation of the
 //! tree crdt described in:
-//! 
-//! "A highly-available move operation for replicated trees 
+//!
+//! "A highly-available move operation for replicated trees
 //! and distributed filesystems" [1] by Martin Klepmann, et al.
-//! 
+//!
 //! [1] https://martin.kleppmann.com/papers/move-op.pdf
-//! 
+//!
 //! For clarity, data structures in this implementation are named
 //! the same as in the paper (State, Tree) or close to
 //! (OpMove --> Move, LogOpMove --> LogOp).  Some are not explicitly
 //! named in the paper, such as TreeId, TreeMeta, TreeNode, Clock.
 
-
 use serde::{Deserialize, Serialize};
+use std::cmp::{Eq, PartialEq};
 use std::collections::HashMap;
-use std::cmp::{PartialEq, Eq};
 
 use super::{TreeId, TreeMeta, TreeNode};
 
@@ -32,26 +31,25 @@ use super::{TreeId, TreeMeta, TreeNode};
 /// with associated metadata m. Given a tree, we can construct
 /// a new tree’ in which the child c is moved to a new parent p,
 /// with associated metadata m, as follows:
-/// 
+///
 /// tree’ = {(p’, m’, c’) ∈ tree. c’ != c} ∪ {(p, m, c)}
-/// 
+///
 /// That is, we remove any existing parent-child relationship
 /// for c from the set tree, and then add {(p, m, c)} to represent
 /// the new parent-child relationship.
 /// ----
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Tree<ID: TreeId, TM: TreeMeta> {
-    triples: HashMap<ID, TreeNode<ID, TM>>,   // tree_nodes, indexed by child_id.
-    children: HashMap<ID, HashMap<ID, bool>>,  // parent_id => [child_id => true].  optimization.
+    triples: HashMap<ID, TreeNode<ID, TM>>, // tree_nodes, indexed by child_id.
+    children: HashMap<ID, HashMap<ID, bool>>, // parent_id => [child_id => true].  optimization.
 }
 
 impl<ID: TreeId, TM: TreeMeta> Tree<ID, TM> {
-
     /// create a new Tree instance
     pub fn new() -> Self {
         Self {
-            triples: HashMap::<ID, TreeNode<ID, TM>>::new(),   // tree_nodes, indexed by child_id.
-            children: HashMap::<ID, HashMap<ID, bool>>::new(),  // parent_id => [child_id => true].  optimization.
+            triples: HashMap::<ID, TreeNode<ID, TM>>::new(), // tree_nodes, indexed by child_id.
+            children: HashMap::<ID, HashMap<ID, bool>>::new(), // parent_id => [child_id => true].  optimization.
         }
     }
 
@@ -112,20 +110,23 @@ impl<ID: TreeId, TM: TreeMeta> Tree<ID, TM> {
 
     /// walks tree and calls callback fn for each node.
     /// not used by crdt algo.
-    fn walk_worker<F>(&self, parent_id: &ID, f: &F, depth: usize) 
-        where F: Fn(&Self, &ID, usize) {
-
+    fn walk_worker<F>(&self, parent_id: &ID, f: &F, depth: usize)
+    where
+        F: Fn(&Self, &ID, usize),
+    {
         f(self, parent_id, depth);
         let children = self.children(parent_id);
         for c in children {
-            self.walk_worker(&c, f, depth+1);
+            self.walk_worker(&c, f, depth + 1);
         }
     }
 
     /// walks tree and calls callback fn for each node.
     /// not used by crdt algo.
-    pub fn walk<F>(&self, parent_id: &ID, f: &F) 
-        where F: Fn(&Self, &ID, usize) {
+    pub fn walk<F>(&self, parent_id: &ID, f: &F)
+    where
+        F: Fn(&Self, &ID, usize),
+    {
         self.walk_worker(parent_id, f, 0)
     }
 

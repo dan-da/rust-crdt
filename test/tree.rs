@@ -1,6 +1,5 @@
 /// tests for crdt-tree
-
-use crdts::tree::{Clock, State, OpMove};
+use crdts::tree::{Clock, OpMove, State};
 use quickcheck::{Arbitrary, Gen, TestResult};
 use rand::Rng;
 use std::collections::HashMap;
@@ -8,31 +7,31 @@ use std::collections::HashMap;
 // Define some "real" types for use in the tests.
 type TypeId = u8;
 type TypeActor = u8;
-type TypeMeta = char;             // used by quickcheck tests
-type TypeMetaStr<'a> = &'a str;   // used by manual tests
+type TypeMeta = char; // used by quickcheck tests
+type TypeMetaStr<'a> = &'a str; // used by manual tests
 
 // A list of quasi-random operations for use by quickcheck.
 #[derive(Debug, Clone)]
 struct OperationList {
-    pub ops: Vec<OpMove<TypeId, TypeMeta, TypeActor>>
+    pub ops: Vec<OpMove<TypeId, TypeMeta, TypeActor>>,
 }
 
 impl Iterator for OperationList {
     type Item = OpMove<TypeId, TypeMeta, TypeActor>;
     fn next(&mut self) -> Option<OpMove<TypeId, TypeMeta, TypeActor>> {
         self.ops.iter().next().cloned()
-    }    
+    }
 }
 
 // generates a list of quasi-random operations.
 // For each op:
-//  1. child_id is generated randomly or picked randomly 
+//  1. child_id is generated randomly or picked randomly
 //      from existing ids if at least 5 existing.  (50/50 chance)
 //  2. metadata is generated randomly
 //  3. parent id is picked randomly from existing ids.
 //
 // (3) ensures that the tree is connected.
-// (1) gives us both ops that create tree nodes and ops 
+// (1) gives us both ops that create tree nodes and ops
 //      that move existing tree nodes.
 //
 // Note that when two OperationList are merged, the
@@ -41,7 +40,7 @@ impl Iterator for OperationList {
 // Note also that two OperationList may use the same
 // clock/timestamp but have different parent/child/meta
 // data.  This is an error condition for Tree, so
-// the test cases must detect and discard if this occurs. 
+// the test cases must detect and discard if this occurs.
 impl Arbitrary for OperationList {
     fn arbitrary<G: Gen>(g: &mut G) -> OperationList {
         let size = {
@@ -54,7 +53,7 @@ impl Arbitrary for OperationList {
         };
 
         let mut clock = Clock::arbitrary(g);
-        let mut nodes: Vec::<TypeId> = Vec::new();
+        let mut nodes: Vec<TypeId> = Vec::new();
         let mut parent_id = TypeId::arbitrary(g);
 
         let mut ops: Vec<OpMove<TypeId, TypeMeta, TypeActor>> = Vec::new();
@@ -73,7 +72,7 @@ impl Arbitrary for OperationList {
 
             ops.push(op);
         }
-        Self{ ops }
+        Self { ops }
     }
 }
 
@@ -91,9 +90,9 @@ fn new_actor() -> TypeActor {
 fn check_log_is_descending(s: &State<TypeId, TypeMeta, TypeActor>) -> bool {
     let mut i = 0;
     let log = s.log();
-    while i < log.len()-1 {
+    while i < log.len() - 1 {
         let first = &log[i];
-        let second = &log[i+1];
+        let second = &log[i + 1];
 
         if !(first.timestamp() > second.timestamp()) {
             return false;
@@ -119,7 +118,7 @@ fn acyclic(s: &State<TypeId, TypeMeta, TypeActor>) -> bool {
 // helper: checks if any node has more than one parent.
 fn parent_unique(s: &State<TypeId, TypeMeta, TypeActor>) -> bool {
     // A map of (child_id,parent_id) --> count
-    let mut cnts: HashMap<(TypeId,TypeId), usize> = HashMap::new();
+    let mut cnts: HashMap<(TypeId, TypeId), usize> = HashMap::new();
 
     // Iterate all tree nodes and store count of each child_id, parent_id pair.
     // If any pair is found to exist more than once, the invariant is broken.
@@ -144,6 +143,12 @@ fn state_from_ops(oplist: &OperationList) -> State<TypeId, TypeMeta, TypeActor> 
     s
 }
 
+// helper: checks if operation lists overlap, ie use the same actor_id.
+fn ops_overlap(o1: &OperationList, o2: &OperationList) -> bool {
+    o1.ops.len() > 0
+        && o2.ops.len() > 0
+        && o1.ops[0].timestamp().actor_id() == o2.ops[0].timestamp().actor_id()
+}
 
 // Tests case 1 in the paper.  Concurrent moves of the same node.
 //
@@ -175,16 +180,17 @@ fn concurrent_moves() {
     let (root_id, a_id, b_id, c_id) = (new_id(), new_id(), new_id(), new_id());
 
     // Create ops for initial tree state.
-    let ops = vec![OpMove::new(r1t.tick(), 0, "root", root_id),
-                    OpMove::new(r1t.tick(), root_id, "a", a_id),
-                    OpMove::new(r1t.tick(), root_id, "b", b_id),
-                    OpMove::new(r1t.tick(), root_id, "c", c_id),
+    let ops = vec![
+        OpMove::new(r1t.tick(), 0, "root", root_id),
+        OpMove::new(r1t.tick(), root_id, "a", a_id),
+        OpMove::new(r1t.tick(), root_id, "b", b_id),
+        OpMove::new(r1t.tick(), root_id, "c", c_id),
     ];
 
     // Apply initial ops to both replicas
     for op in ops {
         r1.apply_op(op.clone());
-        r2.apply_op(op);        
+        r2.apply_op(op);
     }
 
     // replica_1 moves /root/a to /root/b
@@ -231,16 +237,17 @@ fn concurrent_moves_cycle() {
     let (root_id, a_id, b_id, c_id) = (new_id(), new_id(), new_id(), new_id());
 
     // Create ops for initial tree state.
-    let ops = vec![OpMove::new(r1t.tick(), 0, "root", root_id),
-                    OpMove::new(r1t.tick(), root_id, "a", a_id),
-                    OpMove::new(r1t.tick(), root_id, "b", b_id),
-                    OpMove::new(r1t.tick(), a_id, "c", c_id),
+    let ops = vec![
+        OpMove::new(r1t.tick(), 0, "root", root_id),
+        OpMove::new(r1t.tick(), root_id, "a", a_id),
+        OpMove::new(r1t.tick(), root_id, "b", b_id),
+        OpMove::new(r1t.tick(), a_id, "c", c_id),
     ];
 
     // Apply initial ops to both replicas
     for op in ops {
         r1.apply_op(op.clone());
-        r2.apply_op(op);        
+        r2.apply_op(op);
     }
 
     // replica_1 moves /root/b to /root/a
@@ -259,7 +266,6 @@ fn concurrent_moves_cycle() {
     assert_eq!(r1, r2);
 }
 
-
 quickcheck! {
 
     // tests that operations are idempotent
@@ -273,9 +279,9 @@ quickcheck! {
 
     // tests that operations are commutative
     fn prop_commutative(o1: OperationList, o2: OperationList) -> TestResult {
-        
-        if o1.ops.len() > 0 && o2.ops.len() > 0 &&
-            o1.ops[0].timestamp().actor_id() == o2.ops[0].timestamp().actor_id() {
+
+        // discard if o1 actor is same as o2 actor
+        if ops_overlap(&o1, &o2) {
             return TestResult::discard();
         }
 
@@ -287,29 +293,18 @@ quickcheck! {
 
         TestResult::from_bool(r1 == r2)
     }
-    
+
     // tests that operations are associative
     fn prop_associative(
-        o1: OperationList, 
+        o1: OperationList,
         o2: OperationList,
         o3: OperationList
     ) -> TestResult {
 
-        // discard if o1 actor is same as o2 actor
-        if o1.ops.len() > 0 && o2.ops.len() > 0 && 
-            o1.ops[0].timestamp().actor_id() == o2.ops[0].timestamp().actor_id() {
-            return TestResult::discard();
-        }
-
-        // discard if o1 actor is same as o3 actor
-        if o1.ops.len() > 0 && o3.ops.len() > 0 && 
-            o1.ops[0].timestamp().actor_id() == o3.ops[0].timestamp().actor_id() {
-            return TestResult::discard();
-        }
-
-        // discard if o2 actor is same as o3 actor
-        if o2.ops.len() > 0 && o3.ops.len() > 0 && 
-            o2.ops[0].timestamp().actor_id() == o3.ops[0].timestamp().actor_id() {
+        // discard if: o1 actor is same as o2 actor - or -
+        //             o1 actor is same as o3 actor - or -
+        //             02 actor is same as 03 actor.
+        if ops_overlap(&o1, &o2) || ops_overlap(&o1, &o3) || ops_overlap(&o2, &o3) {
             return TestResult::discard();
         }
 
@@ -335,12 +330,12 @@ quickcheck! {
     //
     // From the paper:
     // ----
-    // A graph contains no cycles if no node is an ancestor of itself. 
-    // ----    
+    // A graph contains no cycles if no node is an ancestor of itself.
+    // ----
     fn prop_acyclic(o1: OperationList, o2: OperationList) -> TestResult {
 
-        if o1.ops.len() > 0 && o2.ops.len() > 0 &&
-            o1.ops[0].timestamp().actor_id() == o2.ops[0].timestamp().actor_id() {
+        // discard if o1 actor is same as o2 actor
+        if ops_overlap(&o1, &o2) {
             return TestResult::discard();
         }
 
@@ -367,8 +362,8 @@ quickcheck! {
     // ----
     fn prop_parent_unique(o1: OperationList, o2: OperationList) -> TestResult {
 
-        if o1.ops.len() > 0 && o2.ops.len() > 0 &&
-            o1.ops[0].timestamp().actor_id() == o2.ops[0].timestamp().actor_id() {
+        // discard if o1 actor is same as o2 actor
+        if ops_overlap(&o1, &o2) {
             return TestResult::discard();
         }
 
@@ -387,8 +382,8 @@ quickcheck! {
     // (even after applying ops from other replica)
     fn prop_log_descending(o1: OperationList, o2: OperationList) -> TestResult {
 
-        if o1.ops.len() > 0 && o2.ops.len() > 0 &&
-            o1.ops[0].timestamp().actor_id() == o2.ops[0].timestamp().actor_id() {
+        // discard if o1 actor is same as o2 actor
+        if ops_overlap(&o1, &o2) {
             return TestResult::discard();
         }
 

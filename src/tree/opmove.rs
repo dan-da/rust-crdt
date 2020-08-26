@@ -1,31 +1,30 @@
 //! Implements OpMove, the only way to manipulate Tree data.
-//! 
+//!
 //! OpMove are applied via State::apply_op()
-//! 
+//!
 //! For usage/examples, see:
 //!   examples/tree.rs
 //!   test/tree.rs
-//! 
+//!
 //! This code aims to be an accurate implementation of the
 //! tree crdt described in:
-//! 
-//! "A highly-available move operation for replicated trees 
+//!
+//! "A highly-available move operation for replicated trees
 //! and distributed filesystems" [1] by Martin Klepmann, et al.
-//! 
+//!
 //! [1] https://martin.kleppmann.com/papers/move-op.pdf
-//! 
+//!
 //! For clarity, data structures in this implementation are named
 //! the same as in the paper (State, Tree) or close to
 //! (OpMove --> Move, LogOpMove --> LogOp).  Some are not explicitly
 //! named in the paper, such as TreeId, TreeMeta, TreeNode, Clock.
 
-
 use serde::{Deserialize, Serialize};
-use std::cmp::{PartialEq, Eq};
+use std::cmp::{Eq, PartialEq};
 
-use crate::Actor;
-use super::{TreeId, TreeMeta, LogOpMove, Clock};
+use super::{Clock, LogOpMove, TreeId, TreeMeta};
 use crate::quickcheck::{Arbitrary, Gen};
+use crate::Actor;
 
 /// From the paper:
 /// ----
@@ -38,16 +37,16 @@ use crate::quickcheck::{Arbitrary, Gen};
 /// also designate as "trash" some node ID that does not exist
 /// in the tree; then we can delete a node by moving it to be
 /// a child of the trash.
-/// 
+///
 /// Thus, we define one kind of operation: Move t p m c.  A move
 /// operation is a 4-tuple consisting of a timestamp t of type 't,
 /// a parent node ID p of type 'n, a metadata field m of type 'm,
 /// and a child node ID c of type 'n.  Here, 't, 'n, and 'm are
 /// type variables that can be replaced with arbitrary types;
 /// we only require that node identifiers 'n are globally unique
-/// (eg UUIDs); timestamps 't need to be globally unique and 
+/// (eg UUIDs); timestamps 't need to be globally unique and
 /// totally ordered (eg Lamport timestamps [11]).
-/// 
+///
 /// The meaning of an operation Move t p m c is that at time t,
 /// the node with ID c is moved to be a child of the parent node
 /// with ID p.  The operation does not specify the old location
@@ -55,7 +54,7 @@ use crate::quickcheck::{Arbitrary, Gen};
 /// currently located in the tree, and moves it to p.  If c
 /// does not currently exist in the tree, it is created as a child
 /// of p.
-/// 
+///
 /// The metadata field m in a move operation allows additional
 /// information to be associated with the parent-child relationship
 /// of p and c.  For example, in a filesystem, the parent and
@@ -65,14 +64,14 @@ use crate::quickcheck::{Arbitrary, Gen};
 /// a Move t p m c, where the new parent directory p is the inode
 /// of the existing parent (unchanged), but the metadata m contains
 /// the new filename.
-/// 
+///
 /// When users want to make changes to the tree on their local
 /// replica they generate new Move t p m c operations for these
 /// changes, and apply these operations using the algorithm
 /// described...
 /// ----
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct OpMove<ID: TreeId, TM: TreeMeta, A:Actor> {
+pub struct OpMove<ID: TreeId, TM: TreeMeta, A: Actor> {
     /// lamport clock + actor
     timestamp: Clock<A>,
     /// parent identifier
@@ -84,7 +83,6 @@ pub struct OpMove<ID: TreeId, TM: TreeMeta, A:Actor> {
 }
 
 impl<ID: TreeId, TM: TreeMeta, A: Actor> OpMove<ID, TM, A> {
-
     /// create a new OpMove instance
     pub fn new(timestamp: Clock<A>, parent_id: ID, metadata: TM, child_id: ID) -> Self {
         Self {
@@ -116,9 +114,7 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> OpMove<ID, TM, A> {
     }
 }
 
-
 impl<ID: TreeId, A: Actor, TM: TreeMeta> From<LogOpMove<ID, TM, A>> for OpMove<ID, TM, A> {
-
     /// creates OpMove from a LogOpMove
     fn from(l: LogOpMove<ID, TM, A>) -> Self {
         l.op_into()
@@ -126,15 +122,16 @@ impl<ID: TreeId, A: Actor, TM: TreeMeta> From<LogOpMove<ID, TM, A>> for OpMove<I
 }
 
 // For testing with quicktest
-impl<ID: TreeId + Arbitrary, A: Actor + Arbitrary, TM: TreeMeta + Arbitrary> Arbitrary for OpMove<ID, TM, A> {
-
+impl<ID: TreeId + Arbitrary, A: Actor + Arbitrary, TM: TreeMeta + Arbitrary> Arbitrary
+    for OpMove<ID, TM, A>
+{
     /// generates an arbitrary (random) OpMove
     fn arbitrary<G: Gen>(g: &mut G) -> Self {
-        Self::new(Clock::arbitrary(g),
-                  ID::arbitrary(g),
-                  TM::arbitrary(g),
-                  ID::arbitrary(g)
+        Self::new(
+            Clock::arbitrary(g),
+            ID::arbitrary(g),
+            TM::arbitrary(g),
+            ID::arbitrary(g),
         )
     }
 }
-

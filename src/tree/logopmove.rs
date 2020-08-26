@@ -1,27 +1,27 @@
 //! Implements LogOpMove, a log entry used by State
-//! 
+//!
 //! For usage/examples, see:
 //!   examples/tree.rs
 //!   test/tree.rs
-//! 
+//!
 //! This code aims to be an accurate implementation of the
 //! tree crdt described in:
-//! 
-//! "A highly-available move operation for replicated trees 
+//!
+//! "A highly-available move operation for replicated trees
 //! and distributed filesystems" [1] by Martin Klepmann, et al.
-//! 
+//!
 //! [1] https://martin.kleppmann.com/papers/move-op.pdf
-//! 
+//!
 //! For clarity, data structures in this implementation are named
 //! the same as in the paper (State, Tree) or close to
 //! (OpMove --> Move, LogOpMove --> LogOp).  Some are not explicitly
 //! named in the paper, such as TreeId, TreeMeta, TreeNode, Clock.
 
 use serde::{Deserialize, Serialize};
-use std::cmp::{PartialEq, Eq};
+use std::cmp::{Eq, PartialEq};
 
+use super::{Clock, OpMove, TreeId, TreeMeta, TreeNode};
 use crate::Actor;
-use super::{TreeId, TreeMeta, TreeNode, OpMove, Clock};
 
 /// From the paper:
 /// ----
@@ -33,7 +33,7 @@ use super::{TreeId, TreeMeta, TreeNode, OpMove, Clock};
 /// field oldp of type ('n x 'm) option.  This option type means
 /// the field can either take the value None or a pair of a node ID
 /// and a metadata field.
-/// 
+///
 /// When a replica applies a Move operation to its tree it
 /// also records a corresponding LogMove operation in its log.
 /// The t, p, m, and c fields are taken directly from the Move
@@ -45,7 +45,7 @@ use super::{TreeId, TreeMeta, TreeNode, OpMove, Clock};
 /// The get_parent() function implements this.
 /// ----
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct LogOpMove<ID: TreeId, TM: TreeMeta, A:Actor> {
+pub struct LogOpMove<ID: TreeId, TM: TreeMeta, A: Actor> {
     // an operation that is being logged.
     op: OpMove<ID, TM, A>,
 
@@ -55,13 +55,9 @@ pub struct LogOpMove<ID: TreeId, TM: TreeMeta, A:Actor> {
 }
 
 impl<ID: TreeId, TM: TreeMeta, A: Actor> LogOpMove<ID, TM, A> {
-
     /// create a new instance of LogOpMove
     pub fn new(op: OpMove<ID, TM, A>, oldp: Option<TreeNode<ID, TM>>) -> LogOpMove<ID, TM, A> {
-        LogOpMove {
-            op,
-            oldp,
-        }
+        LogOpMove { op, oldp }
     }
 
     /// returns timestamp reference
@@ -93,5 +89,4 @@ impl<ID: TreeId, TM: TreeMeta, A: Actor> LogOpMove<ID, TM, A> {
     pub fn op_into(self) -> OpMove<ID, TM, A> {
         self.op
     }
-
 }
